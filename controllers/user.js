@@ -32,7 +32,7 @@ const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET;
 // ---- Verify Google
 async function verifyGooglePurchase(packageName, subscriptionId = "weekly_premium", purchaseToken) {
     const auth = new google.auth.GoogleAuth({
-        keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON),
         scopes: ["https://www.googleapis.com/auth/androidpublisher"],
     });
 
