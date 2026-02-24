@@ -1,0 +1,53 @@
+{
+  "name": "lol-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node --max-old-space-size=2048 ./bin/www"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.812.0",
+    "@google-analytics/data": "^5.2.0",
+    "@grpc/grpc-js": "^1.14.0",
+    "app-store-scraper": "^0.18.0",
+    "axios": "^1.7.7",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.5",
+    "cookie-parser": "~1.4.4",
+    "cookie-session": "^2.1.0",
+    "cors": "^2.8.5",
+    "country-list": "^2.3.0",
+    "debug": "~2.6.9",
+    "dotenv": "^16.4.5",
+    "ejs": "~2.6.1",
+    "express": "~4.16.1",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.0",
+    "firebase-admin": "^12.4.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "get-audio-duration": "^4.0.1",
+    "google-gax": "^5.0.3",
+    "google-play-scraper": "^10.0.0",
+    "googleapis": "^159.0.0",
+    "helmet": "^8.0.0",
+    "http-errors": "~1.6.3",
+    "init": "^0.1.2",
+    "jsonwebtoken": "^9.0.2",
+    "jwt-decode": "^4.0.0",
+    "mongoose": "^8.3.1",
+    "morgan": "~1.9.1",
+    "multer": "^1.4.5-lts.1",
+    "naughty-words": "^1.2.0",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "onesignal-node": "^3.4.0",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "random-avatar-generator": "^2.0.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
