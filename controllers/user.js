@@ -1738,6 +1738,94 @@ exports.Challenge = async function (req, res, next) {
     }
 };
 
+// =============================== 11 question ===============================
+exports.HeavenHell = async function (req, res, next) {
+    try {
+        const { id, categoryname, question, lan , que1 , que2 , que3 , que4 } = req.body;
+
+        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4) {
+            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 & question value is required');
+        }
+
+        const user = await NUSER.findOne({ id: id });
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        // =================== share count update =====================
+
+        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
+
+        if (categoryDoc) {
+            const deviceIds = await DEVICE.find().select("deviceId -_id");
+            const idList = deviceIds.map(d => d.deviceId);
+            const alreadyShared = idList.some(id => user.deviceId.includes(id));
+            if (!alreadyShared) {
+                // share increment only once per device
+                const today = new Date().toISOString().split("T")[0];
+                await CATEGORYANALYTICS.findOneAndUpdate(
+                    { date: today, category: categoryname },
+                    { $inc: { share: 1 } },
+                    { upsert: true, new: true }
+                );
+            }
+        }
+
+
+        // =========================================================
+
+        let updated = false;
+
+        // Ensure user.question is an array
+        if (!Array.isArray(user.question)) {
+            user.question = [];
+        }
+
+        let answerObj = {
+            heavenhellque: [que1, que2, que3, que4]
+        };
+
+        user.question = user.question.map(q => {
+            if (q.category === "SGVhdmVuSGVsbA==") {
+                updated = true;
+                return {
+                    category: "SGVhdmVuSGVsbA==",
+                    question: question,
+                    answer: answerObj,
+                    lan: lan
+                };
+            }
+            return q;
+        });
+
+        // If category not found, push new
+        if (!updated) {
+            user.question.push({
+                category: "SGVhdmVuSGVsbA==",
+                question: question,
+                answer: answerObj,
+                lan: lan
+            });
+        }
+
+
+        await user.save();
+
+        res.status(200).json({
+            status: 1,
+            message: updated
+                ? 'Question Updated Successfully'
+                : 'New Category and Question Added Successfully'
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
 
 // ==============================================================================================
 
@@ -2453,16 +2541,24 @@ exports.Verify = async function (req, res, next) {
                 const subscriptionId = userData.subscriptionId || "weekly_premium";
                 const verifyResult = await verifyGooglePurchase(packageName, subscriptionId, purchaseDataToVerify);
                 const lineItem = verifyResult.lineItems?.[0];
-                if (lineItem?.expiryTime) {
-                    const expiryDate = new Date(lineItem.expiryTime);
-                    purchasestatus = expiryDate > new Date() ? "true" : "false";
-                    if (purchasestatus === "false") {
-                        if (verifyResult.subscriptionState === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD") {
-                            purchasestatus = "true"
+                    switch (verifyResult?.subscriptionState) {
+                        case "SUBSCRIPTION_STATE_ACTIVE":
+                            purchasestatus = "true";
+                            break;
+
+                        case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD":
+                            purchasestatus = "true";
                             gracePeriod = "true"
-                        }
+                            break;
+
+                        case "SUBSCRIPTION_STATE_CANCELED":
+                            const expiryDate = new Date(lineItem?.expiryTime);
+                            purchasestatus = expiryDate > new Date() ? "true" : "false";
+                            break;
+
+                        default:
+                            purchasestatus = "false";
                     }
-                }
             }
             if (req.body.platform === "ios" && purchaseDataToVerify) {
                 const verifyResult = await verifyApplePurchase(purchaseDataToVerify);

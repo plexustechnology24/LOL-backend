@@ -65,6 +65,7 @@ const newuserData = new Schema({
                 confessionTitle: String,  //5
                 hotnessId: Number,  //6
                 subCategory: String,  //7
+                heavenhellque: [String],  //11
             },
             lan: String
         }
