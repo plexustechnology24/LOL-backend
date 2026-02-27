@@ -19,6 +19,7 @@ const MAINCATEGORY = require('../models/hotnessMainCategory');
 const HOTENESSCARBG = require('../models/hotnessCardBg');
 const FRIENDCARBG = require('../models/friendCardBg');
 const BLUFFCARBG = require('../models/bluffCardBg');
+const HEAVENHELLCARBG = require('../models/heavenHellCardBg');
 const TEMP = require('../models/temp');
 const COLLAB = require('../models/collab');
 
@@ -402,6 +403,9 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         break;
       case '12':
         Model = CHALLENGECONTENT;
+        break;
+      case '13':
+        Model = HEAVENHELLCARBG;
         break;
       default:
         throw new Error('Invalid TypeId');

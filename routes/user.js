@@ -240,7 +240,7 @@ router.post('/web/hotness', upload.none(), validateRequestBody, userControllers.
 router.post('/catgory/ip', upload.none(), validateRequestBody, userControllers.CategoryWebIp);
 router.post('/purchase/status', upload.none(), validateRequestBody, verifyToken, userControllers.Status);
 router.post('/user/verify', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Verify);
-router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet);
+router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
 router.get('/download', validateRequestBody, analyticsControllers.Download);
 // ======================================= 3 question ==============================================
 router.post('/annoy/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Annoy);
