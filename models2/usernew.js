@@ -66,6 +66,7 @@ const newuserData = new Schema({
                 hotnessId: Number,  //6
                 subCategory: String,  //7
                 heavenhellque: [String],  //11
+                avatarImg: String,  //11
             },
             lan: String
         }

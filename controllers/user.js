@@ -9,11 +9,13 @@ const DEVICE = require('../models/device');
 const TEMP = require('../models/temp');
 const ECARDBG = require('../models/emotionCardBg');
 const HCARDBG = require('../models/hotnessCardBg');
+const HHCARDBG = require('../models/heavenHellCardBg');
 const FCARDBG = require('../models/friendCardBg');
 const BCARDBG = require('../models/bluffCardBg');
 const HOTNESSCATEGORY = require('../models/hotnessCategory');
 const EMOJI = require('../models/emotionEmoji');
 const CONTENT = require('../models/emotionContent');
+const HEAVENHELLQUE = require('../models/heavenHellContent');
 const CHALLENGECONTENT = require('../models/challengeContent');
 const COLLAB = require('../models/collab');
 const jwt = require('jsonwebtoken');
@@ -81,74 +83,57 @@ function generateAppleJWT() {
     );
 }
 
-async function verifyApplePurchase(originalTransactionId, id) {
+async function fetchAppleSubscription(originalTransactionId) {
     const token = generateAppleJWT();
 
-    const PROD_URL = `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
-    const SANDBOX_URL = `https://api.storekit-sandbox.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`;
+    const urls = [
+        `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`,
+        `https://api.storekit-sandbox.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`
+    ];
 
-    try {
-        // Try Production first
-        const prodResponse = await axios.get(PROD_URL, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        const groups = prodResponse.data.data; // Fixed: was sandboxResponse
-
-        const status = groups[0]?.lastTransactions?.[0].status;
-
-        const signedTransactionInfo = groups[0]?.lastTransactions?.[0].signedTransactionInfo;
-        const decoded = jwt.decode(signedTransactionInfo);
-
-        if (decoded) {
-            await TEMP.create({
-                EmailId: id,
-                btransactionId: decoded.transactionId,
-                bogTransactionId: decoded.originalTransactionId,
-                bpurchaseDate: decoded.purchaseDate,
-                bexDate: decoded.expiresDate,
-                case: "-",
-                bstatus: status,
+    for (const url of urls) {
+        try {
+            const { data } = await axios.get(url, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+            return data.data?.[0]?.lastTransactions?.[0];
+        } catch (err) {
+            if (![401, 404].includes(err.response?.status)) throw err;
         }
-
-        return status;
-
-    } catch (error) {
-        // If production fails, try sandbox
-        if (error.response?.status === 404 || error.response?.status === 401) {
-            const sandboxResponse = await axios.get(SANDBOX_URL, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            const groups = sandboxResponse.data.data;
-            const status = groups[0]?.lastTransactions?.[0].status;
-
-            const signedTransactionInfo = groups[0]?.lastTransactions?.[0].signedTransactionInfo;
-            const decoded = jwt.decode(signedTransactionInfo);
-
-            if (decoded) {
-                await TEMP.create({
-                    EmailId: id,
-                    btransactionId: decoded.transactionId,
-                    bogTransactionId: decoded.originalTransactionId,
-                    bpurchaseDate: decoded.purchaseDate,
-                    bexDate: decoded.expiresDate,
-                    case: "-",
-                    bstatus: status,
-                });
-            }
-
-
-            return status;
-        }
-
-        throw error;
     }
+    return null;
+}
+
+async function verifyApplePurchase(originalTransactionId, id) {
+    const transaction = await fetchAppleSubscription(originalTransactionId);
+    if (!transaction) return null;
+
+    const status = transaction.status;
+    const decoded = jwt.decode(transaction.signedTransactionInfo);
+
+    if (decoded && id) {
+        await TEMP.create({
+            EmailId: id,
+            btransactionId: decoded.transactionId,
+            bogTransactionId: decoded.originalTransactionId,
+            bpurchaseDate: decoded.purchaseDate,
+            bexDate: decoded.expiresDate,
+            case: "-",
+            bstatus: status,
+        });
+    }
+
+    return status;
+}
+
+async function checkGracePeriod(originalTransactionId) {
+    const transaction = await fetchAppleSubscription(originalTransactionId);
+    if (!transaction) return "false";
+
+    const decoded = jwt.decode(transaction.signedRenewalInfo);
+    const graceExpire = Number(decoded?.gracePeriodExpiresDate || 0);
+
+    return graceExpire > Date.now() ? "true" : "false";
 }
 
 //====== User =======
@@ -538,8 +523,8 @@ exports.Purchase2 = async function (req, res, next) {
         if (req.body.platform === "ios") {
             const receiptData = req.body.purchasedata
             if (receiptData) {
-                const verifyResult = await verifyApplePurchase(receiptData, req.body.id);
-                purchasestatus = (verifyResult === 1 || verifyResult === 3) ? "true" : "false";
+                const status = await verifyApplePurchase(receiptData, req.body.id);
+                purchasestatus = [1, 3].includes(status) ? "true" : "false";
                 purchaseId = receiptData;
             }
 
@@ -1741,10 +1726,10 @@ exports.Challenge = async function (req, res, next) {
 // =============================== 11 question ===============================
 exports.HeavenHell = async function (req, res, next) {
     try {
-        const { id, categoryname, question, lan , que1 , que2 , que3 , que4 } = req.body;
+        const { id, categoryname, question, lan, que1, que2, que3, que4, avatarImg } = req.body;
 
-        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4) {
-            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 & question value is required');
+        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4 || !avatarImg) {
+            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 & avatarImg value is required');
         }
 
         const user = await NUSER.findOne({ id: id });
@@ -1782,7 +1767,8 @@ exports.HeavenHell = async function (req, res, next) {
         }
 
         let answerObj = {
-            heavenhellque: [que1, que2, que3, que4]
+            heavenhellque: [que1, que2, que3, que4],
+            avatarImg: avatarImg
         };
 
         user.question = user.question.map(q => {
@@ -1816,6 +1802,75 @@ exports.HeavenHell = async function (req, res, next) {
             message: updated
                 ? 'Question Updated Successfully'
                 : 'New Category and Question Added Successfully'
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
+exports.HeavenHellQues = async function (req, res, next) {
+    try {
+        const { id, lan, type } = req.body;
+
+        if (!lan || !type) {
+            throw new Error('lan , type  value is required');
+        }
+
+        const user = await NUSER.findOne({ id: id });
+        if (!user) throw new Error('User not found');
+
+        const ques = await HEAVENHELLQUE.find();
+
+        const adminQues = ques.map(q =>
+            lan === 'hi' ? q.hiContent :
+                lan === 'es' ? q.esContent :
+                    q.Content
+        );
+
+        const getRandom = (arr, count) => {
+            const shuffled = [...arr].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, count);
+        };
+
+        let finalIds = [];
+
+        if (!user.isPurchase) {
+            finalIds = getRandom(adminQues, 4);
+        } else {
+            if (Number(type) === 2) {
+                finalIds = getRandom(adminQues, 1);
+            } else {
+                let userIds = user.question
+                    .filter(q => q.category === "SGVhdmVuSGVsbA==")
+                    .map(q => q.answer.heavenhellque)
+                    .flat();
+
+                userIds = userIds.map(id => id.toString());
+                const userNotInAdmin = userIds.filter(
+                    uid => !adminQues.includes(uid)
+                );
+
+                const fixed = userNotInAdmin.slice(0, 4);
+
+                const remainingCount = 4 - fixed.length;
+
+                if (remainingCount > 0) {
+                    const randomAdmin = getRandom(adminQues, remainingCount);
+                    finalIds = [...fixed, ...randomAdmin];
+                } else {
+                    finalIds = fixed;
+                }
+            }
+        }
+
+        res.status(200).json({
+            status: 1,
+            message: 'Ques find successfully',
+            data: finalIds
         });
 
     } catch (error) {
@@ -2323,6 +2378,35 @@ exports.WebBluffCardPreview = async (req, res, next) => {
 };
 
 
+exports.WebHeavenHellCardPreview = async (req, res, next) => {
+    try {
+        const { category } = req.body;
+        const CardBg = await HHCARDBG.aggregate([
+            {
+                $match: { Category: category }
+            },
+            {
+                $sample: { size: 1 }
+            }
+        ]);
+
+        res.status(200).json({
+            status: 1,
+            message: "Success",
+            data: {
+                CardBg: CardBg[0]?.CardBg,
+            }
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message
+        });
+    }
+};
+
+
 exports.WebRoastHostId = async (req, res) => {
     try {
         const { hotnessId, lanText } = req.body;
@@ -2541,30 +2625,38 @@ exports.Verify = async function (req, res, next) {
                 const subscriptionId = userData.subscriptionId || "weekly_premium";
                 const verifyResult = await verifyGooglePurchase(packageName, subscriptionId, purchaseDataToVerify);
                 const lineItem = verifyResult.lineItems?.[0];
-                    switch (verifyResult?.subscriptionState) {
-                        case "SUBSCRIPTION_STATE_ACTIVE":
-                            purchasestatus = "true";
-                            break;
+                switch (verifyResult?.subscriptionState) {
+                    case "SUBSCRIPTION_STATE_ACTIVE":
+                        purchasestatus = "true";
+                        break;
 
-                        case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD":
-                            purchasestatus = "true";
-                            gracePeriod = "true"
-                            break;
+                    case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD":
+                        purchasestatus = "true";
+                        gracePeriod = "true"
+                        break;
 
-                        case "SUBSCRIPTION_STATE_CANCELED":
-                            const expiryDate = new Date(lineItem?.expiryTime);
-                            purchasestatus = expiryDate > new Date() ? "true" : "false";
-                            break;
+                    case "SUBSCRIPTION_STATE_CANCELED":
+                        const expiryDate = new Date(lineItem?.expiryTime);
+                        purchasestatus = expiryDate > new Date() ? "true" : "false";
+                        break;
 
-                        default:
-                            purchasestatus = "false";
-                    }
+                    default:
+                        purchasestatus = "false";
+                }
             }
             if (req.body.platform === "ios" && purchaseDataToVerify) {
-                const verifyResult = await verifyApplePurchase(purchaseDataToVerify);
-                purchasestatus = (verifyResult === 1 || verifyResult === 3 || verifyResult === 4) ? "true" : "false";
-                if (verifyResult === 4) {
-                    gracePeriod = "true"
+
+                const status = await verifyApplePurchase(purchaseDataToVerify, id);
+
+                if ([1, 4].includes(status)) {
+                    purchasestatus = "true";
+                    if (status === 4) gracePeriod = "true";
+                }
+                else if (status === 3) {
+                    purchasestatus = await checkGracePeriod(purchaseDataToVerify);
+                }
+                else {
+                    purchasestatus = "false";
                 }
             }
 

@@ -222,6 +222,13 @@ exports.Create = async function (req, res, next) {
             ...(req.body.bluffContent && { bluffContent: req.body.bluffContent }),
             ...(req.body.bluffEmoji && { bluffEmoji: req.body.bluffEmoji }),
             ...(req.body.challengeContent && { challengeContent: req.body.challengeContent }),
+            ...(req.body.heavenHellQue && { heavenHellQue: JSON.parse(req.body.heavenHellQue) }),
+            ...(req.body.heavenHellAns && { heavenHellAns: JSON.parse(req.body.heavenHellAns) }),
+            ...(req.body.heavenHellContent && { heavenHellContent: req.body.heavenHellContent }),
+            ...(req.body.heavenHellBg && { heavenHellBg: req.body.heavenHellBg }),
+            ...(req.body.heavenHellAvatarImg && { heavenHellAvatarImg: req.body.heavenHellAvatarImg }),
+            ...(req.body.heavenHellBgMdlImg && { heavenHellBgMdlImg: req.body.heavenHellBgMdlImg }),
+            ...(req.body.heavenHellType && { heavenHellType: req.body.heavenHellType }),
         };
 
         // =================== Create INBOX ===================
@@ -451,6 +458,16 @@ exports.ReadPagination = async function (req, res, next) {
                     challengeContent: item.answer?.challengeContent ?? null,
                 };
 
+            } else if (item.category === 'SGVhdmVuSGVsbA==') {
+                answerData = {
+                    heavenHellQue: item.answer?.heavenHellQue,
+                    heavenHellAns: item.answer?.heavenHellAns,
+                    heavenHellContent: item.answer?.heavenHellContent,
+                    heavenHellBg: item.answer?.heavenHellBg,
+                    heavenHellAvatarImg: item.answer?.heavenHellAvatarImg,
+                    heavenHellBgMdlImg: item.answer?.heavenHellBgMdlImg,
+                    heavenHellType: item.answer?.heavenHellType,
+                };
             } else {
                 answerData = {
                     word: item.answer?.word,

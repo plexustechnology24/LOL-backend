@@ -48,6 +48,13 @@ const inboxData = new Schema({
         bluffContent: String, //9
         bluffEmoji: String, //9
         challengeContent: String, //10
+        heavenHellQue : [String],  //11
+        heavenHellAns : [String],  //11
+        heavenHellContent: String, //11
+        heavenHellBg: String, //11
+        heavenHellAvatarImg: String, //11
+        heavenHellBgMdlImg: String, //11
+        heavenHellType: String, //11
     },
     hint: {
         type: String,

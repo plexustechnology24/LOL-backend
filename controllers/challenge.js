@@ -1,5 +1,23 @@
 const CONTENT = require('../models/challengeContent');
 const axios = require('axios');
+// const { transliterate } = require("transliteration");
+
+// function convertToHinglish(text) {
+//     // Emoji detect regex
+//     const emojiRegex = /([\u231A-\uD83E\uDDFF\uD83C-\uDBFF\uDC00-\uDFFF]+)/g;
+
+//     const emojis = text.match(emojiRegex) || [];
+
+//     // Remove emoji temporarily
+//     const textWithoutEmoji = text.replace(emojiRegex, '');
+
+//     // Transliterate only text
+//     const hinglishText = transliterate(textWithoutEmoji);
+
+//     // Add emoji back at end
+//     return hinglishText.trim() + " " + emojis.join(" ");
+// }
+
 
 
 // =================================== Content =======================================

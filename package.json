@@ -45,6 +45,7 @@
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "random-avatar-generator": "^2.0.0",
+    "transliteration": "^2.6.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

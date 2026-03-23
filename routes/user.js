@@ -236,15 +236,12 @@ router.post('/web/challenge/content', upload.none(), validateRequestBody, userCo
 router.post('/web/hotness/cardpreview', upload.none(), validateRequestBody, userControllers.WebHotnessCardPreview);
 router.post('/web/friend/cardpreview', upload.none(), validateRequestBody, userControllers.WebFriendCardPreview);
 router.post('/web/bluff/cardpreview', upload.none(), validateRequestBody, userControllers.WebBluffCardPreview);
+router.post('/web/heavenhell/cardpreview', upload.none(), validateRequestBody, userControllers.WebHeavenHellCardPreview);
 router.post('/web/hotness', upload.none(), validateRequestBody, userControllers.WebRoastHostId);
 router.post('/catgory/ip', upload.none(), validateRequestBody, userControllers.CategoryWebIp);
 router.post('/purchase/status', upload.none(), validateRequestBody, verifyToken, userControllers.Status);
 router.post('/user/verify', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Verify);
-<<<<<<< HEAD
-router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
-=======
-router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet);  //2 ques
->>>>>>> 44f0496 (heaven hell share api & playstore change)
++router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
 router.get('/download', validateRequestBody, analyticsControllers.Download);
 // ======================================= 3 question ==============================================
 router.post('/annoy/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Annoy);
@@ -276,6 +273,7 @@ router.post('/challenge/share', upload.none(), validateRequestBody, verifyToken,
 
 // ======================================= 11 question ==============================================
 router.post('/heavenhell/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHell);
+router.post('/heavenhell/ques', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHellQues);
 
 
 

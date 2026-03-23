@@ -452,76 +452,105 @@ router.post('/merge', upload.fields([
   { name: 'image', maxCount: 1 },
   { name: 'videoFile', maxCount: 1 }
 ]), async (req, res) => {
-  const audioUrl = req.body.audioUrl;
-  const videoUrl = req.body.videoUrl;
+  const requestId = `REQ-${Date.now()}`;
+  console.log(`\n🚀 [${requestId}] POST /merge — started`);
+
+  const audioUrl    = req.body.audioUrl;
+  const videoUrl    = req.body.videoUrl;
   const hasVideoFile = req.files && req.files.videoFile;
 
-  // Validate input
+  console.log(`📋 [${requestId}] Inputs → audioUrl: ${!!audioUrl}, videoUrl: ${!!videoUrl}, videoFile: ${!!hasVideoFile}, image: ${!!(req.files && req.files.image)}`);
+
+  // ─── Validate: no image provided ───────────────────────────────────────────
   if (!req.files || !req.files.image) {
+    console.log(`⚠️  [${requestId}] No image provided`);
     if (audioUrl) {
+      console.log(`↩️  [${requestId}] Returning audioUrl directly`);
       return res.status(200).json({
         message: 'No image provided — returning audio URL directly.',
         videoUrl: audioUrl
       });
     } else if (videoUrl) {
+      console.log(`↩️  [${requestId}] Returning videoUrl directly`);
       return res.status(200).json({
         message: 'No image provided — returning video URL directly.',
         videoUrl: videoUrl
       });
     } else {
+      console.error(`❌ [${requestId}] No image and no media source — rejecting`);
       return res.status(400).json({
         message: 'Either audioUrl or videoUrl is required when no image is provided.'
       });
     }
   }
 
-  // Check for multiple video sources
+  // ─── Validate: count media sources ─────────────────────────────────────────
   const videoSourceCount = [audioUrl, videoUrl, hasVideoFile].filter(Boolean).length;
+  console.log(`🔢 [${requestId}] Media source count: ${videoSourceCount}`);
+
+  if (videoSourceCount === 0) {
+    console.error(`❌ [${requestId}] Image provided but no media source (audioUrl / videoUrl / videoFile)`);
+    return res.status(400).json({
+      message: 'At least one of audioUrl, videoUrl, or videoFile is required when an image is provided.'
+    });
+  }
+
   if (videoSourceCount > 1) {
+    console.error(`❌ [${requestId}] Multiple media sources provided — ambiguous`);
     return res.status(400).json({
       message: 'Please provide only one of: audioUrl, videoUrl, or videoFile.'
     });
   }
 
+  // ─── Helpers ────────────────────────────────────────────────────────────────
   let responseAlreadySent = false;
 
   const sendResponse = (statusCode, data) => {
     if (!responseAlreadySent && !res.headersSent) {
       responseAlreadySent = true;
+      console.log(`📤 [${requestId}] Sending response → HTTP ${statusCode}`);
       return res.status(statusCode).json(data);
+    } else {
+      console.warn(`⚠️  [${requestId}] sendResponse called again after response already sent (ignored)`);
     }
   };
 
   const cleanupFiles = (filePaths) => {
+    console.log(`🧹 [${requestId}] Cleaning up ${filePaths.length} temp file(s)...`);
     filePaths.forEach(filePath => {
       try {
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
+          console.log(`   🗑️  Deleted: ${filePath}`);
         }
       } catch (cleanupErr) {
-        console.error(`Cleanup error for ${filePath}:`, cleanupErr.message);
+        console.error(`   ⚠️  Cleanup error for ${filePath}: ${cleanupErr.message}`);
       }
     });
   };
 
+  // ─── Main processing ────────────────────────────────────────────────────────
   try {
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`📁 [${requestId}] Created upload directory: ${uploadDir}`);
     }
 
-    const timestamp = Date.now();
-    const imageExt = path.extname(req.files.image[0].originalname);
-    const imagePath = path.join(uploadDir, `img-${timestamp}${imageExt}`);
+    const timestamp   = Date.now();
+    const imageExt    = path.extname(req.files.image[0].originalname);
+    const imagePath   = path.join(uploadDir, `img-${timestamp}${imageExt}`);
     const outputVideoPath = path.join(uploadDir, `output-${timestamp}.mp4`);
 
-    // Write image file asynchronously
+    console.log(`💾 [${requestId}] Writing image to disk: ${imagePath}`);
     await fs.promises.writeFile(imagePath, req.files.image[0].buffer);
+    console.log(`✅ [${requestId}] Image written (${(req.files.image[0].buffer.length / 1024).toFixed(1)} KB)`);
 
-    // Upload image to S3 in parallel (non-blocking)
+    // ── Upload image to S3 in parallel (non-blocking) ────────────────────────
     let imageS3Url = null;
     const imageUploadPromise = (async () => {
       try {
-        const imageBuffer = req.files.image[0].buffer;
+        console.log(`☁️  [${requestId}] Starting S3 image upload...`);
+        const imageBuffer   = req.files.image[0].buffer;
         const imageMimeType = req.files.image[0].mimetype || 'image/jpeg';
 
         const { filename: imageFilename, url: imageUrl } = await uploadToS3(
@@ -534,22 +563,25 @@ router.post('/merge', upload.fields([
         );
 
         imageS3Url = imageUrl;
-        console.log('✅ Image uploaded to S3:', imageS3Url);
-        console.log('📦 Image S3 Key:', `images/uploads/${imageFilename}`);
+        console.log(`✅ [${requestId}] Image uploaded to S3: ${imageS3Url}`);
+        console.log(`📦 [${requestId}] Image S3 key: images/uploads/${imageFilename}`);
       } catch (imageUploadErr) {
-        console.error('❌ Image S3 upload error:', imageUploadErr.message);
+        console.error(`❌ [${requestId}] Image S3 upload failed: ${imageUploadErr.message}`);
       }
     })();
 
-    let ffmpegCommand = ffmpeg();
+    let ffmpegCommand     = ffmpeg();
     let allFilesToCleanup = [imagePath, outputVideoPath];
 
+    // ── BRANCH: Audio ─────────────────────────────────────────────────────────
     if (audioUrl) {
-      // Audio processing - maximum speed
+      console.log(`🎵 [${requestId}] Mode: image + audio`);
       const audioPath = path.join(uploadDir, `aud-${timestamp}.mp3`);
       allFilesToCleanup.push(audioPath);
 
       try {
+        console.log(`⬇️  [${requestId}] Downloading audio: ${audioUrl}`);
+        const dlStart  = Date.now();
         const response = await axios.get(audioUrl, {
           responseType: 'arraybuffer',
           timeout: 15000,
@@ -560,8 +592,9 @@ router.post('/merge', upload.fields([
           }
         });
         await fs.promises.writeFile(audioPath, Buffer.from(response.data));
+        console.log(`✅ [${requestId}] Audio downloaded in ${Date.now() - dlStart}ms (${(response.data.byteLength / 1024).toFixed(1)} KB)`);
       } catch (downloadError) {
-        console.error('Audio download failed:', downloadError.message);
+        console.error(`❌ [${requestId}] Audio download failed: ${downloadError.message}`);
         cleanupFiles(allFilesToCleanup);
         return sendResponse(500, {
           message: 'Failed to download audio file.',
@@ -569,6 +602,7 @@ router.post('/merge', upload.fields([
         });
       }
 
+      console.log(`🎬 [${requestId}] Configuring FFmpeg for image+audio...`);
       ffmpegCommand
         .input(imagePath)
         .loop()
@@ -591,20 +625,20 @@ router.post('/merge', upload.fields([
           '-level', '3.0'
         ]);
 
+    // ── BRANCH: Video (file or URL) ───────────────────────────────────────────
     } else if (videoUrl || hasVideoFile) {
+      console.log(`🎥 [${requestId}] Mode: image + ${hasVideoFile ? 'uploaded video file' : 'video URL'}`);
       const videoPath = path.join(uploadDir, `vid-${timestamp}.mp4`);
       allFilesToCleanup.push(videoPath);
 
-      // Handle video file upload or URL download
       if (hasVideoFile) {
-        // Direct video file upload - use async write
         try {
-          console.log('📹 Writing video file from upload...');
+          console.log(`💾 [${requestId}] Writing uploaded video to disk: ${videoPath}`);
           const startWrite = Date.now();
           await fs.promises.writeFile(videoPath, req.files.videoFile[0].buffer);
-          console.log(`✅ Video file written in ${Date.now() - startWrite}ms`);
+          console.log(`✅ [${requestId}] Video file written in ${Date.now() - startWrite}ms (${(req.files.videoFile[0].buffer.length / 1024 / 1024).toFixed(2)} MB)`);
         } catch (writeError) {
-          console.error('Video file write failed:', writeError.message);
+          console.error(`❌ [${requestId}] Video file write failed: ${writeError.message}`);
           cleanupFiles(allFilesToCleanup);
           return sendResponse(500, {
             message: 'Failed to write video file.',
@@ -612,14 +646,14 @@ router.post('/merge', upload.fields([
           });
         }
       } else {
-        // Download from URL
-        console.log('📹 Downloading video from URL...');
-        const startDownload = Date.now();
         try {
+          console.log(`⬇️  [${requestId}] Downloading video from URL: ${videoUrl}`);
+          const startDownload = Date.now();
           await downloadFileWithRetry(videoUrl, videoPath, 2, 90000);
-          console.log(`✅ Video downloaded in ${Date.now() - startDownload}ms`);
+          const stats = fs.statSync(videoPath);
+          console.log(`✅ [${requestId}] Video downloaded in ${Date.now() - startDownload}ms (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
         } catch (downloadError) {
-          console.error('Video download failed:', downloadError.message);
+          console.error(`❌ [${requestId}] Video download failed: ${downloadError.message}`);
           cleanupFiles(allFilesToCleanup);
           return sendResponse(500, {
             message: 'Failed to download video file.',
@@ -628,62 +662,68 @@ router.post('/merge', upload.fields([
         }
       }
 
-      // Parallel dimension probing with timeout
-      console.log('🔍 Probing media dimensions...');
+      // ── Probe dimensions ───────────────────────────────────────────────────
+      console.log(`🔍 [${requestId}] Probing media dimensions...`);
       const probeStart = Date.now();
 
-      const [imageDimensions, videoDimensions] = await Promise.race([
-        Promise.all([
-          new Promise((resolve, reject) => {
-            ffmpeg.ffprobe(imagePath, (err, metadata) => {
-              if (err) reject(err);
-              else resolve({ width: metadata.streams[0].width, height: metadata.streams[0].height });
-            });
-          }),
-          new Promise((resolve, reject) => {
-            ffmpeg.ffprobe(videoPath, (err, metadata) => {
-              if (err) reject(err);
-              else {
-                const videoStream = metadata.streams.find(s => s.codec_type === 'video');
-                resolve({ width: videoStream.width, height: videoStream.height });
-              }
-            });
-          })
-        ]),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Probe timeout after 10s')), 10000)
-        )
-      ]).catch(probeError => {
-        console.error('Probe failed:', probeError.message);
+      const probeImage = new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(imagePath, (err, metadata) => {
+          if (err) {
+            console.error(`❌ [${requestId}] ffprobe failed for image: ${err.message}`);
+            return reject(new Error(`Image probe failed: ${err.message}`));
+          }
+          const stream = metadata.streams[0];
+          if (!stream) return reject(new Error('Image has no streams'));
+          console.log(`📐 [${requestId}] Image dimensions: ${stream.width}x${stream.height}`);
+          resolve({ width: stream.width, height: stream.height });
+        });
+      });
+
+      const probeVideo = new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(videoPath, (err, metadata) => {
+          if (err) {
+            console.error(`❌ [${requestId}] ffprobe failed for video: ${err.message}`);
+            return reject(new Error(`Video probe failed: ${err.message}`));
+          }
+          const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+          if (!videoStream) return reject(new Error('Video file has no video stream'));
+          console.log(`📐 [${requestId}] Video dimensions: ${videoStream.width}x${videoStream.height}`);
+          resolve({ width: videoStream.width, height: videoStream.height });
+        });
+      });
+
+      // FIX: use try/catch so return actually exits the function
+      let imageDimensions, videoDimensions;
+      try {
+        [imageDimensions, videoDimensions] = await Promise.race([
+          Promise.all([probeImage, probeVideo]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Probe timeout after 10s')), 10000)
+          )
+        ]);
+        console.log(`✅ [${requestId}] Dimensions probed in ${Date.now() - probeStart}ms`);
+      } catch (probeError) {
+        console.error(`❌ [${requestId}] Probe failed: ${probeError.message}`);
         cleanupFiles(allFilesToCleanup);
-        sendResponse(500, {
+        return sendResponse(500, {
           message: 'Failed to get media dimensions.',
           details: probeError.message
         });
-        return null;
-      });
+      }
 
-      if (!imageDimensions || !videoDimensions) return;
-
-      console.log(`✅ Dimensions probed in ${Date.now() - probeStart}ms`);
-      console.log(`📐 Image: ${imageDimensions.width}x${imageDimensions.height}`);
-      console.log(`📐 Video: ${videoDimensions.width}x${videoDimensions.height}`);
-
-      const extraWidth = req.body.videoUrl ? 200 : 0;
-      const targetWidth = Math.ceil((imageDimensions.width + extraWidth) / 2) * 2;
+      const extraWidth  = videoUrl ? 200 : 0;
+      const targetWidth  = Math.ceil((imageDimensions.width + extraWidth) / 2) * 2;
       const targetHeight = Math.ceil(imageDimensions.height / 2) * 2;
+      const isLandscape  = videoDimensions.width > videoDimensions.height;
 
-      console.log(`🎯 Target dimensions: ${targetWidth}x${targetHeight}`);
+      console.log(`🎯 [${requestId}] Target: ${targetWidth}x${targetHeight} | Video orientation: ${isLandscape ? 'landscape' : 'portrait'}`);
 
-      const isLandscapeVideo = videoDimensions.width > videoDimensions.height;
-
-      // Optimized filter with reduced quality for speed
-      if (isLandscapeVideo) {
+      if (isLandscape) {
+        console.log(`🎬 [${requestId}] Configuring FFmpeg for landscape video overlay...`);
         ffmpegCommand
           .input(videoPath)
           .input(imagePath)
           .complexFilter([
-            // Simplified scaling with reduced quality for speed
             `[0:v]scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=decrease:flags=fast_bilinear,` +
             `pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2:black,fps=24[scaled_video]`,
             `[scaled_video][1:v]overlay=x=(main_w-overlay_w)/2:y='if(lt(main_h-overlay_h-30,0),0,main_h-overlay_h-30)'[output]`
@@ -692,8 +732,8 @@ router.post('/merge', upload.fields([
             '-map', '[output]',
             '-map', '0:a?',
             '-c:v', 'libx264',
-            '-preset', 'veryfast', // Changed from ultrafast for better compression
-            '-crf', '28', // Reduced from 30 for slightly better quality
+            '-preset', 'veryfast',
+            '-crf', '28',
             '-pix_fmt', 'yuv420p',
             '-c:a', 'aac',
             '-b:a', '64k',
@@ -701,8 +741,8 @@ router.post('/merge', upload.fields([
             '-ac', '2',
             '-movflags', '+faststart',
             '-threads', '0',
-            '-max_muxing_queue_size', '4096', // Increased buffer
-            '-tune', 'zerolatency', // Removed fastdecode for better speed
+            '-max_muxing_queue_size', '4096',
+            '-tune', 'zerolatency',
             '-profile:v', 'baseline',
             '-level', '3.0',
             '-g', '48',
@@ -716,6 +756,7 @@ router.post('/merge', upload.fields([
             '-mpv_flags', '+nopimb+forcemv'
           ]);
       } else {
+        console.log(`🎬 [${requestId}] Configuring FFmpeg for portrait video overlay...`);
         ffmpegCommand
           .input(videoPath)
           .input(imagePath)
@@ -754,66 +795,62 @@ router.post('/merge', upload.fields([
       }
     }
 
-    // Extended timeout for video file processing
-    const timeoutDuration = (videoUrl || hasVideoFile) ? 120000 : 45000; // Increased to 120s
+    // ── Timeout ────────────────────────────────────────────────────────────────
+    const timeoutDuration = (videoUrl || hasVideoFile) ? 120000 : 45000;
+    console.log(`⏱️  [${requestId}] FFmpeg timeout set to ${timeoutDuration / 1000}s`);
 
     const timeoutId = setTimeout(() => {
       if (!responseAlreadySent && !res.headersSent) {
-        console.error('⏱️ Processing timeout after', timeoutDuration / 1000, 'seconds');
-        try {
-          ffmpegCommand.kill('SIGKILL');
-        } catch (killErr) { }
+        console.error(`⏱️  [${requestId}] Processing timeout after ${timeoutDuration / 1000}s — killing FFmpeg`);
+        try { ffmpegCommand.kill('SIGKILL'); } catch (_) {}
         cleanupFiles(allFilesToCleanup);
-        sendResponse(408, {
-          message: 'Operation timeout.'
-        });
+        sendResponse(408, { message: 'Operation timeout.' });
       }
     }, timeoutDuration);
 
-    let lastProgressTime = Date.now();
+    let lastProgressTime    = Date.now();
     let lastProgressPercent = 0;
 
+    // ── FFmpeg events ──────────────────────────────────────────────────────────
     ffmpegCommand
       .on('start', (commandLine) => {
-        console.log('🎬 FFmpeg started');
-        console.log('Command:', commandLine);
+        console.log(`\n🎬 [${requestId}] FFmpeg started`);
+        console.log(`📟 [${requestId}] Command: ${commandLine}\n`);
       })
       .on('progress', (progress) => {
         const now = Date.now();
 
-        // Log progress every 10%
         if (progress.percent && Math.floor(progress.percent / 10) > Math.floor(lastProgressPercent / 10)) {
-          console.log(`⏳ Processing: ${Math.floor(progress.percent)}%`);
+          console.log(`⏳ [${requestId}] FFmpeg progress: ${Math.floor(progress.percent)}% | frames: ${progress.frames} | speed: ${progress.currentFps}fps`);
           lastProgressPercent = progress.percent;
         }
 
-        // Check for stall (increased to 45s for video processing)
         if (now - lastProgressTime > 45000) {
-          console.error('❌ Processing stalled - no progress for 45s');
-          try {
-            ffmpegCommand.kill('SIGKILL');
-          } catch (e) { }
+          console.error(`❌ [${requestId}] FFmpeg stalled — no progress for 45s, killing process`);
+          try { ffmpegCommand.kill('SIGKILL'); } catch (_) {}
         }
         lastProgressTime = now;
       })
       .on('end', async () => {
         clearTimeout(timeoutId);
-        console.log('✅ FFmpeg processing complete');
+        console.log(`✅ [${requestId}] FFmpeg processing complete`);
 
         if (responseAlreadySent || res.headersSent) {
+          console.warn(`⚠️  [${requestId}] Response already sent before FFmpeg end — skipping upload`);
           cleanupFiles(allFilesToCleanup);
           return;
         }
 
         try {
-          // Wait for image upload to complete
+          console.log(`⏳ [${requestId}] Waiting for S3 image upload to complete...`);
           await imageUploadPromise;
 
-          console.log('📤 Uploading merged video to S3...');
-          const uploadStart = Date.now();
-
           const videoBuffer = await fs.promises.readFile(outputVideoPath);
-          console.log(`📦 Video size: ${(videoBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+          const videoSizeMB = (videoBuffer.length / 1024 / 1024).toFixed(2);
+          console.log(`📦 [${requestId}] Output video size: ${videoSizeMB} MB`);
+
+          console.log(`☁️  [${requestId}] Uploading merged video to S3...`);
+          const uploadStart = Date.now();
 
           const { filename, url } = await uploadToS3(
             videoBuffer,
@@ -824,24 +861,25 @@ router.post('/merge', upload.fields([
             '.mp4'
           );
 
-          console.log(`✅ Video uploaded in ${Date.now() - uploadStart}ms`);
+          console.log(`✅ [${requestId}] Merged video uploaded to S3 in ${Date.now() - uploadStart}ms: ${url}`);
 
-          // Schedule deletion after 5 minutes
+          // Schedule S3 deletion after 5 minutes
           setTimeout(async () => {
             try {
               await s3Client.send(new DeleteObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME,
                 Key: `videos/merged/${filename}`
               }));
-              console.log(`🗑️ Deleted ${filename} from S3`);
+              console.log(`🗑️  [${requestId}] Auto-deleted from S3: videos/merged/${filename}`);
             } catch (deleteErr) {
-              console.error('❌ Delete error:', deleteErr.message);
+              console.error(`❌ [${requestId}] S3 auto-delete failed: ${deleteErr.message}`);
             }
           }, 5 * 60 * 1000);
 
           cleanupFiles(allFilesToCleanup);
 
           const mediaType = audioUrl ? 'Image + Audio' : 'Image + Video';
+          console.log(`🎉 [${requestId}] ${mediaType} merge complete — returning 200`);
           sendResponse(200, {
             message: `${mediaType} merged successfully.`,
             videoUrl: url,
@@ -849,7 +887,7 @@ router.post('/merge', upload.fields([
           });
 
         } catch (uploadErr) {
-          console.error('❌ Upload error:', uploadErr);
+          console.error(`❌ [${requestId}] S3 upload error after FFmpeg: ${uploadErr.message}`);
           cleanupFiles(allFilesToCleanup);
           sendResponse(500, {
             message: 'Error uploading video.',
@@ -857,9 +895,10 @@ router.post('/merge', upload.fields([
           });
         }
       })
-      .on('error', (err) => {
+      .on('error', (err, stdout, stderr) => {
         clearTimeout(timeoutId);
-        console.error('❌ FFmpeg Error:', err.message);
+        console.error(`❌ [${requestId}] FFmpeg error: ${err.message}`);
+        if (stderr) console.error(`📋 [${requestId}] FFmpeg stderr:\n${stderr}`);
         cleanupFiles(allFilesToCleanup);
         sendResponse(500, {
           message: 'Error processing files.',
@@ -868,8 +907,11 @@ router.post('/merge', upload.fields([
       })
       .save(outputVideoPath);
 
+    console.log(`💾 [${requestId}] FFmpeg save initiated → ${outputVideoPath}`);
+
   } catch (error) {
-    console.error('❌ Unexpected error:', error);
+    console.error(`❌ [${requestId}] Unexpected error: ${error.message}`);
+    console.error(error.stack);
     sendResponse(500, {
       message: 'Unexpected error occurred.',
       details: error.message

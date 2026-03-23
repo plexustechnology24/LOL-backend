@@ -184,4 +184,11 @@ router.delete('/delete/:id', async (req, res, next) => {
     }
 });
 
+
+// ============================== Content =====================================
+router.post('/content/create', heavenHellControllers.ContentCreate);
+router.post('/content/read', heavenHellControllers.ContentRead);
+router.patch('/content/update/:id', heavenHellControllers.ContentUpdate);
+router.delete('/content/delete/:id', heavenHellControllers.ContentDelete);
+
 module.exports = router;
