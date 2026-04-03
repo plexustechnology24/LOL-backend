@@ -278,10 +278,5 @@ router.delete('/emoji/delete/:id', async (req, res, next) => {
     }
 });
 
-// ============================== Content =====================================
-router.post('/content/create', emotionControllers.ContentCreate);
-router.post('/content/read', emotionControllers.ContentRead);
-router.patch('/content/update/:id', emotionControllers.ContentUpdate);
-router.delete('/content/delete/:id', emotionControllers.ContentDelete);
 
 module.exports = router;

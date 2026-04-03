@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userControllers = require('../controllers/user');
+const userWordsControllers = require('../controllers/UserWords');
 const NUSER = require('../models2/usernew');
 const path = require('path');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
@@ -220,6 +221,7 @@ async function uploadMediaWithFrameCapture(file, folderPath) {
 // Routes
 router.get('/callback', upload.none(), userControllers.CallBack);
 router.post('/idcheck', upload.none(), validateRequestBody, userControllers.IdExist);
+router.post('/auto-message', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.AutoMessage); 
 router.post('/pause-link2', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.UpdateLink2);    //old
 router.post('/pauselink', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PauseLink);    //new
 router.post('/que/add', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.StaticQue);
@@ -240,9 +242,20 @@ router.post('/web/heavenhell/cardpreview', upload.none(), validateRequestBody, u
 router.post('/web/hotness', upload.none(), validateRequestBody, userControllers.WebRoastHostId);
 router.post('/catgory/ip', upload.none(), validateRequestBody, userControllers.CategoryWebIp);
 router.post('/purchase/status', upload.none(), validateRequestBody, verifyToken, userControllers.Status);
-router.post('/user/verify', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Verify);
-+router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
 router.get('/download', validateRequestBody, analyticsControllers.Download);
+router.post('/user/verify', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Verify);
+router.post('/user/views', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.UserViews);
+router.post('/user/language', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.UserLanguage);
+
+
+// ============================== 1 & 4 QUES STORE API ================================
++router.post('/user/word', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Create);
+
++router.post('/user/word/get', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Read);
+
+
++router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
++router.post('/picroast/data', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PicRoastData); // 2 question
 // ======================================= 3 question ==============================================
 router.post('/annoy/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Annoy);
 router.post('/annoy/allcardtitle', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.AnnoyCardtitle);
@@ -320,6 +333,37 @@ router.post('/update/profile', upload.single("avatar"), validateRequestBody, ver
         }
         
         userControllers.ProfileUpdate(req, res, next);
+    } catch (error) {
+        console.error('Error during profile update:', error);
+        res.status(500).json({
+            error: 'Avatar upload failed',
+            details: error.message
+        });
+    }
+});
+
+router.post('/update/allprofile', upload.single("avatar"), validateRequestBody, verifyToken, verifyUserId, async (req, res, next) => {
+    try {
+        if (req.file) {
+            // Get user's current avatar before updating
+            const { id } = req.body;
+            const currentUser = await NUSER.findOne({ id: id });
+            
+            if (currentUser && currentUser.avatar) {
+                // Delete old avatar from S3
+                const bucketName = process.env.AWS_BUCKET_NAME;
+                await deleteFromS3(currentUser.avatar, bucketName);
+            }
+            
+            // Upload new avatar to S3
+            const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
+            
+            // Store filename and URL in the request object for the controller
+            req.file.filename = filename;
+            req.file.s3Url = url;
+        }
+        
+        userControllers.ProfileUpdateNew(req, res, next);
     } catch (error) {
         console.error('Error during profile update:', error);
         res.status(500).json({

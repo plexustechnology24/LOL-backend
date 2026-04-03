@@ -18,13 +18,27 @@ const newuserData = new Schema({
     username: {
         type: String
     },
+    badge: {
+        type: String,
+        default: "New"
+    },
+    badgeImage: {
+        type: String,
+        default: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/new.png"
+    },
+    latitude: {
+        type: String
+    },
+    longitude: {
+        type: String
+    },
     isPurchase: {
         type: Boolean,
         enum: ['true', 'false'],
         default: 'false',
         required: true
     },
-    update : String,
+    update: String,
     purchaseId: { type: String, default: null },
     transactionId: { type: String, default: null },
     subscriptionId: { type: String, default: null },
@@ -37,6 +51,12 @@ const newuserData = new Schema({
         default: 'false',
         required: true
     },
+    autoMessage: {
+        type: Boolean,
+        enum: [true, false],
+        default: true,
+        required: true
+    },
     expiryTime: Number,
     timeperiod: Number,
     language: {
@@ -44,6 +64,7 @@ const newuserData = new Schema({
     },
     deviceToken: [String],
     deviceId: [String],
+    premiumQuestion: [String],
     picroastcredit: {
         type: Number,
         default: 2,

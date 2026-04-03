@@ -6,7 +6,10 @@ const Schema = mongoose.Schema;
 const ques10ContentData = new Schema({
     Content: String,
     hiContent: String,
-    esContent: String
+    esContent: String,
+    taContent: String,
+    mrContent: String,
+    enhiContent: String
 },
     {
         versionKey: false,

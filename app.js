@@ -31,10 +31,10 @@ const friendRouter = require('./routes/friend');
 const bluffRouter = require('./routes/bluff');
 const heavenHellRouter = require('./routes/heavenHell');
 const comingSoonRouter = require('./routes/comingSoon');
-const challengeRouter = require('./routes/challenge');
 const collabRouter = require('./routes/collab');
 const tempRouter = require('./routes/temp');
 const messageRouter = require('./routes/message');
+const webRouter = require('./routes/web');
 
 const app = express();
 
@@ -128,16 +128,16 @@ app.use('/api/cardbg', cardbgRouter);
 app.use('/api/avatar', avatarRouter);
 app.use('/api/emotion', emotionRouter);
 app.use('/api/device', deviceRouter);
-app.use('/api/hintcontent', contentRouter);
+app.use('/api/content', contentRouter);
 app.use('/api/hotness', hotnessRouter);
 app.use('/api/friend', friendRouter);
 app.use('/api/bluff', bluffRouter);
 app.use('/api/heaven-hell', heavenHellRouter);
 app.use('/api/coming-soon', comingSoonRouter);
-app.use('/api/challenge', challengeRouter);
 app.use('/api/collab', collabRouter);
 app.use('/api/temp', tempRouter);
 app.use('/api/message', messageRouter);
+app.use('/api/web', webRouter);
 
 app.get("/", (req, res) => {
   res.send("Server is running!");

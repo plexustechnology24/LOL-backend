@@ -8,6 +8,9 @@ exports.Create = async function (req, res, next) {
         if (req.body.emailIds && !Array.isArray(req.body.emailIds)) {
             req.body.emailIds = [req.body.emailIds];
         }
+        if (req.body.webDeviceIds && !Array.isArray(req.body.webDeviceIds)) {
+            req.body.webDeviceIds = [req.body.webDeviceIds];
+        }
         
         const datacreate = await DEVICE.create(req.body);
         res.status(201).json({
@@ -66,6 +69,9 @@ exports.Update = async function (req, res, next) {
         // Ensure emailIds is an array
         if (req.body.emailIds && !Array.isArray(req.body.emailIds)) {
             req.body.emailIds = [req.body.emailIds];
+        }
+        if (req.body.webDeviceIds && !Array.isArray(req.body.webDeviceIds)) {
+            req.body.webDeviceIds = [req.body.webDeviceIds];
         }
         
         const updatedCard = await DEVICE.findByIdAndUpdate(

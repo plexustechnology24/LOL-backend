@@ -66,6 +66,9 @@ const inboxData = new Schema({
     hintContent: {
         type: String
     },
+    hintAudio: {
+        type: String
+    },
     location: {
         type: String,
         required: true

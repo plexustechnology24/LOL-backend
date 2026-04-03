@@ -1,6 +1,7 @@
 const CARDBG = require('../models/heavenHellCardBg');
-const CONTENT = require('../models/heavenHellContent');
+const CONTENT = require('../models/heavenHellQue');
 const axios = require('axios');
+const { transliterate } = require("transliteration");
 
 exports.Create = async function (req, res, next) {
     try {
@@ -112,6 +113,24 @@ exports.Delete = async function (req, res, next) {
 
 
 // =================================== Content =======================================
+
+
+function convertToHinglish(text) {
+    // Emoji detect regex
+    const emojiRegex = /([\u231A-\uD83E\uDDFF\uD83C-\uDBFF\uDC00-\uDFFF]+)/g;
+
+    const emojis = text.match(emojiRegex) || [];
+
+    // Remove emoji temporarily
+    const textWithoutEmoji = text.replace(emojiRegex, '');
+
+    // Transliterate only text
+    const hinglishText = transliterate(textWithoutEmoji);
+
+    // Add emoji back at end
+    return hinglishText.trim() + " " + emojis.join(" ");
+}
+
 async function translateText(text, from, to) {
     try {
         const res = await axios.get("https://api.mymemory.translated.net/get", {
@@ -132,6 +151,9 @@ exports.ContentCreate = async function (req, res, next) {
         if (req.body.Content) {
             req.body.hiContent = await translateText(req.body.Content, "en", "hi");
             req.body.esContent = await translateText(req.body.Content, "en", "es");
+            req.body.taContent = await translateText(req.body.Content, "en", "ta");
+            req.body.mrContent = await translateText(req.body.Content, "en", "mr");
+            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
 
         const datacreate = await CONTENT.create(req.body);
@@ -156,9 +178,6 @@ exports.ContentRead = async function (req, res, next) {
 
         // Build query filter
         const filter = {};
-        if (category && category !== '') {
-            filter.Category = category;
-        }
 
         const total = await CONTENT.countDocuments(filter);
         const data = await CONTENT.find(filter)
@@ -192,8 +211,11 @@ exports.ContentUpdate = async function (req, res, next) {
         if (req.body.Content) {
             req.body.hiContent = await translateText(req.body.Content, "en", "hi");
             req.body.esContent = await translateText(req.body.Content, "en", "es");
+            req.body.taContent = await translateText(req.body.Content, "en", "ta");
+            req.body.mrContent = await translateText(req.body.Content, "en", "mr");
+            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
-        
+
         const updatedCard = await CONTENT.findByIdAndUpdate(
             req.params.id,
             req.body,

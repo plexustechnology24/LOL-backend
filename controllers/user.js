@@ -2,8 +2,6 @@ const NUSER = require('../models2/usernew');
 const NINBOX = require('../models2/inboxnew');
 const WEB = require('../models/web');
 const PREMIUM = require('../models/premium');
-const CATEGORY = require('../models/category');
-const CATEGORYANALYTICS = require('../models/categoryanalytics');
 const CARDBG = require('../models/cardBg');
 const DEVICE = require('../models/device');
 const TEMP = require('../models/temp');
@@ -15,8 +13,9 @@ const BCARDBG = require('../models/bluffCardBg');
 const HOTNESSCATEGORY = require('../models/hotnessCategory');
 const EMOJI = require('../models/emotionEmoji');
 const CONTENT = require('../models/emotionContent');
-const HEAVENHELLQUE = require('../models/heavenHellContent');
+const HEAVENHELLQUE = require('../models/heavenHellQue');
 const CHALLENGECONTENT = require('../models/challengeContent');
+const USERANALYTICS = require('../models2/userAnalytics');
 const COLLAB = require('../models/collab');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
@@ -27,6 +26,9 @@ const SECRET_KEY = 'LOL-KEY';
 const { google } = require("googleapis");
 const axios = require("axios");
 const cheerio = require("cheerio");
+
+const { updateShareAndBadge } = require('../helpers/analyticsHelper');
+
 
 // APPLE CONFIG
 const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET;
@@ -51,6 +53,8 @@ async function verifyGooglePurchase(packageName, subscriptionId = "weekly_premiu
         // console.log(res.data.lineItems);
 
         const data = res.data;
+        console.log(data);
+
         // console.log("Subscription State:", data.subscriptionState);
         return data;
     } catch (error) {
@@ -85,6 +89,8 @@ function generateAppleJWT() {
 
 async function fetchAppleSubscription(originalTransactionId) {
     const token = generateAppleJWT();
+    console.log(token);
+
 
     const urls = [
         `https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/${originalTransactionId}`,
@@ -107,9 +113,21 @@ async function fetchAppleSubscription(originalTransactionId) {
 async function verifyApplePurchase(originalTransactionId, id) {
     const transaction = await fetchAppleSubscription(originalTransactionId);
     if (!transaction) return null;
+    console.log(transaction);
 
     const status = transaction.status;
     const decoded = jwt.decode(transaction.signedTransactionInfo);
+    const decodedRenewal = jwt.decode(transaction.signedRenewalInfo);
+
+    let productId = null;
+
+    if (decodedRenewal) {
+        if (decodedRenewal.autoRenewStatus === 1) {
+            productId = decodedRenewal.autoRenewProductId;
+        } else {
+            productId = decodedRenewal.productId;
+        }
+    }
 
     if (decoded && id) {
         await TEMP.create({
@@ -123,7 +141,7 @@ async function verifyApplePurchase(originalTransactionId, id) {
         });
     }
 
-    return status;
+    return { status, productId }; // ✅ RETURN BOTH
 }
 
 async function checkGracePeriod(originalTransactionId) {
@@ -177,6 +195,21 @@ exports.CallBack = async function (req, res, next) {
 
 
 // =========================== 2.O ================================
+const allPremiumQuestions = [
+    "QW5ub3kgZnVuIENhcmQ=",
+    "RW1vdGlvbg==",
+    "Q29uZmVzc2lvbg==",
+    "SG90bmVzcw==",
+    "RnJpZW5k",
+    "Um9hc3Q=",
+    "Qmx1ZmY=",
+    "Q2hhbGxlbmdl",
+    "SGVhdmVuSGVsbA==",
+];
+function getRandomQuestions(array, count = 3) {
+    const shuffled = array.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+}
 exports.Profile = async function (req, res, next) {
     try {
         const { id, username, language, deviceToken, deviceId, name } = req.body;
@@ -218,7 +251,7 @@ exports.Profile = async function (req, res, next) {
             req.body.deviceId = [deviceId];
         }
 
-
+        req.body.premiumQuestion = getRandomQuestions(allPremiumQuestions, 3);
         const dataCreate = await NUSER.create(req.body);
 
         const { _id, createdAt, updatedAt, __v, picroastcredit, ...otherData } = dataCreate.toObject();
@@ -271,7 +304,7 @@ exports.IdExist = async function (req, res, next) {
                     await userData.save();
                 }
             }
-            const { _id, createdAt, updatedAt, __v, picroastcredit, deviceToken, deviceId, ...otherData } = userData.toObject();
+            const { _id, createdAt, updatedAt, __v, picroastcredit, deviceToken, deviceId, latitude, longitude, ...otherData } = userData.toObject();
 
 
             let response = {
@@ -282,13 +315,16 @@ exports.IdExist = async function (req, res, next) {
 
             if (req.body.platform) {
                 const premium = await PREMIUM.findOne({ isActive: true })
-                if (req.body.lan === "hi") {
-                    response.premiumtitle = premium.hiTitle || null;
-                } else if (req.body.lan === "es") {
-                    response.premiumtitle = premium.esTitle || null;
-                } else {
-                    response.premiumtitle = premium.title || null;
-                }
+                const langMap = {
+                    hi: "hiTitle",
+                    es: "esTitle",
+                    ta: "taTitle",
+                    mr: "mrTitle",
+                    enhi: "enhiTitle"
+                };
+
+                const key = langMap[req.body.lan] || "title";
+                response.premiumtitle = premium[key] || null;
                 response.premiumid = req.body.platform === "android" ? premium.androidId : premium.iosId
                 response.data = {
                     ...otherData,
@@ -311,13 +347,16 @@ exports.IdExist = async function (req, res, next) {
 
             if (req.body.platform) {
                 const premium = await PREMIUM.findOne({ isActive: true })
-                if (req.body.lan === "hi") {
-                    response.premiumtitle = premium.hiTitle || null;
-                } else if (req.body.lan === "es") {
-                    response.premiumtitle = premium.esTitle || null;
-                } else {
-                    response.premiumtitle = premium.title || null;
-                }
+                const langMap = {
+                    hi: "hiTitle",
+                    es: "esTitle",
+                    ta: "taTitle",
+                    mr: "mrTitle",
+                    enhi: "enhiTitle"
+                };
+
+                const key = langMap[req.body.lan] || "title";
+                response.premiumtitle = premium[key] || null;
                 response.premiumid = req.body.platform === "android" ? premium.androidId : premium.iosId
             }
 
@@ -355,6 +394,101 @@ exports.ProfileUpdate = async function (req, res, next) {
             message: "Profile Updated successfully",
             data: dataUpdate.avatar
         });
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message
+        });
+    }
+};
+
+exports.ProfileUpdateNew = async function (req, res, next) {
+    try {
+        if (req.file) {
+            req.body.avatar = req.file.s3Url;
+        } else if (req.body.avatarUrl) {
+            req.body.avatar = req.body.avatarUrl;
+        }
+
+        const { id } = req.body;
+
+        // ================== BADGE CALCULATION ==================
+        const analytics = await USERANALYTICS.findOne({ id: id });
+
+        let totalShare = 0;
+
+        if (analytics && analytics.questions.length > 0) {
+            totalShare = analytics.questions.reduce((sum, q) => {
+                return sum + (q.share || 0) + (q.reply || 0);
+            }, 0);
+        }
+
+        // Badge logic
+        function getBadge(totalShare) {
+            if (totalShare >= 200) {
+                return {
+                    name: "Famous",
+                    image: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/famous.png"
+                };
+            }
+
+            if (totalShare >= 100) {
+                return {
+                    name: "Trending",
+                    image: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/trending.png"
+                };
+            }
+
+            if (totalShare >= 40) {
+                return {
+                    name: "Popular",
+                    image: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/popular.png"
+                };
+            }
+
+            if (totalShare >= 10) {
+                return {
+                    name: "Active",
+                    image: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/active.png"
+                };
+            }
+
+            return {
+                name: "New",
+                image: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/new.png"
+            };
+        }
+
+        const badgeData = getBadge(totalShare);
+
+        req.body.badge = badgeData.name;
+        req.body.badgeImage = badgeData.image;
+
+        // ================== PROFILE UPDATE ==================
+
+        const dataUpdate = await NUSER.findOneAndUpdate(
+            { id: id },
+            req.body,
+            { new: true }
+        );
+
+        if (!dataUpdate) {
+            throw new Error("id not found");
+        }
+
+        const data = dataUpdate.toObject();
+
+        const filteredData = {
+            username: data.username,
+            avatar: data.avatar,
+            birthdate: data.birthdate
+        };
+
+        res.status(200).json({
+            status: 1,
+            message: "Profile Updated successfully",
+            data: filteredData
+        });
 
     } catch (error) {
         res.status(400).json({
@@ -371,6 +505,32 @@ exports.UpdateLink2 = async function (req, res, next) {
 
         if (!id || !pauseLink) {
             throw new Error("id and pauseLink are required");
+        }
+
+        const dataUpdate = await NUSER.findOneAndUpdate({ id: id }, req.body, { new: true });
+        if (!dataUpdate) {
+            throw new Error('User not found');
+        }
+
+        res.status(200).json({
+            status: 1,
+            message: 'Data Updated Successfully',
+        });
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
+exports.AutoMessage = async function (req, res, next) {
+    try {
+
+        const { id, autoMessage } = req.body;
+
+        if (!id || !autoMessage) {
+            throw new Error("id and autoMessage are required");
         }
 
         const dataUpdate = await NUSER.findOneAndUpdate({ id: id }, req.body, { new: true });
@@ -494,23 +654,41 @@ exports.Purchase2 = async function (req, res, next) {
 
         let purchasestatus = "false";
         let purchaseId = null;
-        let transactionId = null;
+        let subscriptionId = null;
 
+        // ================= ANDROID =================
         if (req.body.platform === "android") {
-            // Static values
+
             const packageName = "com.lol.android";
-            let subscriptionId = req.body.subscriptionId || "monthly_premium";
-            const purchaseToken = req.body.purchasedata
+            const purchaseToken = req.body.purchasedata;
+
+            let linkedToken = null;
 
             if (purchaseToken) {
-                const verifyResult = await verifyGooglePurchase(packageName, subscriptionId, purchaseToken);
+                const verifyResult = await verifyGooglePurchase(
+                    packageName,
+                    req.body.subscriptionId,
+                    purchaseToken
+                );
+
+                linkedToken = verifyResult.linkedPurchaseToken;
+
                 const lineItem = verifyResult.lineItems?.[0];
+
                 if (lineItem?.expiryTime) {
                     const expiryDate = new Date(lineItem.expiryTime);
                     purchasestatus = expiryDate > new Date() ? "true" : "false";
                 }
+
                 purchaseId = purchaseToken;
-                subscriptionId = subscriptionId;
+                subscriptionId = lineItem?.offerDetails?.basePlanId || null;
+            }
+
+            if (linkedToken) {
+                await NUSER.updateMany(
+                    { purchaseId: linkedToken },
+                    { isPurchase: purchasestatus, purchaseId, subscriptionId }
+                );
             }
 
             await NUSER.findOneAndUpdate(
@@ -520,41 +698,54 @@ exports.Purchase2 = async function (req, res, next) {
             );
         }
 
+        // ================= IOS =================
         if (req.body.platform === "ios") {
-            const receiptData = req.body.purchasedata
+
+            const receiptData = req.body.purchasedata;
+
             if (receiptData) {
-                const status = await verifyApplePurchase(receiptData, req.body.id);
+                const result = await verifyApplePurchase(receiptData, req.body.id);
+
+                const status = result?.status;
+                subscriptionId = result?.productId;
+
                 purchasestatus = [1, 3].includes(status) ? "true" : "false";
                 purchaseId = receiptData;
+
+                await NUSER.findOneAndUpdate(
+                    { id: req.body.id },
+                    {
+                        isPurchase: purchasestatus,
+                        purchaseId,
+                        subscriptionId
+                    },
+                    { new: true }
+                );
             }
-
-            await NUSER.findOneAndUpdate(
-                { id: req.body.id },
-                { isPurchase: purchasestatus, purchaseId },
-                { new: true }
-            );
-
 
             if (purchasestatus === "false") {
                 await NUSER.updateMany(
-                    {
-                        purchaseId: req.body.purchasedata
-                    },
+                    { purchaseId: req.body.purchasedata },
                     {
                         $set: {
                             purchaseId: null,
-                            isPurchase: false
+                            isPurchase: false,
+                            subscriptionId: null
                         }
                     }
                 );
             }
         }
 
+        // ================= RESPONSE =================
         res.status(200).json({
             status: 1,
             message: 'User-Purchase Update Successfully',
-            purchasestatus: purchasestatus
+            purchasestatus: purchasestatus,
+            purchaseId: purchaseId,
+            subscriptionId: subscriptionId
         });
+
     } catch (error) {
         res.status(400).json({
             status: 0,
@@ -630,7 +821,7 @@ exports.StaticQue = async function (req, res, next) {
 
 exports.StaticQueUpdate = async function (req, res, next) {
     try {
-        const { id, categoryname, question, lan, picroastcredit, timestamp, quetype } = req.body;
+        const { id, categoryname, question, lan, timestamp, quetype } = req.body;
 
         if (!categoryname || !question || !lan) {
             throw new Error('categoryname, lan & question value is required');
@@ -642,41 +833,15 @@ exports.StaticQueUpdate = async function (req, res, next) {
         }
         // =================== share count update
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
+        await updateShareAndBadge(id, categoryname, user);
 
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-        // ======================
+        // ===========================================
 
         let updated = false;
 
         if (categoryname === 'UGljIFJvYXN0') {
-            if (!picroastcredit || !timestamp || !quetype) {
-                throw new Error('picroastcredit , quetype & timestamp value is required');
-            }
-        }
-
-        // ✅ Handle picroastcredit logic
-        if (typeof picroastcredit !== "undefined") {
-            const num = Number(picroastcredit);
-
-            if (num === 1) {
-                user.picroastcredit = user.picroastcredit - 1;
-            } else if (num === 0) {
-                user.picroastcredit = user.picroastcredit - 0;
+            if (!timestamp || !quetype) {
+                throw new Error(' quetype & timestamp value is required');
             }
         }
 
@@ -769,58 +934,143 @@ exports.CreditGet = async function (req, res, next) {
     }
 };
 
+exports.PicRoastData = async function (req, res, next) {
+    try {
+        const { id } = req.body;
+
+        const user = await NUSER.findOne({ id: id });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        const CATEGORY_KEY = "UGljIFJvYXN0";
+
+        // filter + map
+        const data = (user.question || [])
+            .filter(q => q.category === CATEGORY_KEY && q.answer?.image && q.answer?.quetype)
+            .map(q => ({
+                image: q.answer.image,
+                quetype: q.answer.quetype
+            }));
+
+        res.status(200).json({
+            status: 1,
+            message: 'Data Found Successfully',
+            data: data
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
 // ======================== 3 question =================================
 const annoyQuestions = {
     en: [
-        "Weird Talent",
+        "Weird talent",
         "Hobby",
-        "Jolly Memory",
+        "Favourite memory",
         "Secret",
-        "Hidden Skill",
+        "Hidden talent",
+        "Embarrassing moment",
+        "First impression",
         "Mood",
-        "Guilty Pleasure",
-        "Crush Vibes",
-        "Jolly Addiction",
-        "Funny Dream",
-        "Antic Phobia",
-        "Carbon Copy",
-        "Antic Work",
-        "Fantasy Mystery",
-        "Antic Crush"
+        "Guilty pleasure",
+        "Crush",
+        "Weird habit",
+        "Random fact",
+        "Secret wish",
+        "Night thoughts",
+        "Funny dream"
     ],
     es: [
         "Talento raro",
         "Pasatiempo",
-        "Recuerdo alegre",
+        "Recuerdo favorito",
         "Secreto",
-        "Habilidad oculta",
+        "Talento oculto",
+        "Momento vergonzoso",
+        "Primera impresión",
         "Estado de ánimo",
         "Placer culposo",
-        "Vibras de crush",
-        "Adicción divertida",
-        "Sueño divertido",
-        "Fobia rara",
-        "Copia exacta",
-        "Trabajo raro",
-        "Misterio fantasioso",
-        "Crush antiguo"
+        "Crush",
+        "Hábito raro",
+        "Dato aleatorio",
+        "Deseo secreto",
+        "Pensamientos nocturnos",
+        "Sueño divertido"
     ],
     hi: [
         "अजीब टैलेंट",
         "शौक",
-        "मजेदार याद",
+        "पसंदीदा याद",
         "राज़",
-        "छिपी हुई कला",
+        "छुपा हुआ टैलेंट",
+        "शर्मनाक पल",
+        "पहला इंप्रेशन",
         "मूड",
         "गिल्टी प्लेजर",
-        "क्रश वाइब्स",
-        "मजेदार लत",
-        "मजेदार सपना",
-        "अजीब फोबिया",
-        "हूबहू कॉपी",
-        "अनोखा काम",
-        "फैंटेसी मिस्ट्री",
-        "पुराना क्रश"
+        "क्रश",
+        "अजीब आदत",
+        "रैंडम फैक्ट",
+        "सीक्रेट विश",
+        "रात के ख्याल",
+        "मजेदार सपना"
+    ],
+    ta: [
+        "விசித்திர திறமை",
+        "விருப்பம்",
+        "பிடித்த நினைவு",
+        "ரகசியம்",
+        "மறைந்த திறமை",
+        "வெட்கப்படத்தக்க தருணம்",
+        "முதல் பார்வை",
+        "மனநிலை",
+        "குற்ற உணர்ச்சி மகிழ்ச்சி",
+        "க்ரஷ்",
+        "விசித்திர பழக்கம்",
+        "சீரற்ற தகவல்",
+        "ரகசிய ஆசை",
+        "இரவு எண்ணங்கள்",
+        "வேடிக்கையான கனவு"
+    ],
+    mr: [
+        "विचित्र टॅलेंट",
+        "छंद",
+        "आवडती आठवण",
+        "गुपित",
+        "लपलेला टॅलेंट",
+        "लाजिरवाणा क्षण",
+        "पहिली छाप",
+        "मूड",
+        "गिल्टी प्लेझर",
+        "क्रश",
+        "विचित्र सवय",
+        "रँडम तथ्य",
+        "गुपित इच्छा",
+        "रात्रीचे विचार",
+        "मजेदार स्वप्न"
+    ],
+    enhi: [
+        "Ajeeb Talent",
+        "Shauk",
+        "Favourite Yaad",
+        "Raaz",
+        "Hidden Talent",
+        "Embarrassing Moment",
+        "First Impression",
+        "Mood",
+        "Guilty Pleasure",
+        "Crush",
+        "Weird Habit",
+        "Random Fact",
+        "Secret Wish",
+        "Night Thoughts",
+        "Funny Dream"
     ]
 };
 
@@ -841,32 +1091,19 @@ exports.Annoy = async function (req, res, next) {
         if (!categoryname || !question || !lan || !cardtitle1 || !cardtitle2 || !cardtitle3 || !cardtitle4) {
             throw new Error('categoryname, lan , cardtitle1 , cardtitle2 , cardtitle3 , cardtitle4 & question value is required');
         }
+        if (categoryname !== "QW5ub3kgZnVuIENhcmQ=") {
+            throw new Error('Invalid categoryname');
+        }
 
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
-
         // =================== share count update
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
+        await updateShareAndBadge(id, categoryname, user);
 
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-        // ======================
+        // ===========================================
 
         let updated = false;
 
@@ -921,31 +1158,28 @@ exports.Annoy = async function (req, res, next) {
     }
 };
 
-
 exports.AnnoyCardtitle = async function (req, res, next) {
     try {
         const { id, lan } = req.body;
 
-        // ✅ Find user
         const user = await NUSER.findOne({ id });
         if (!user) throw new Error('User not found');
 
-        // ✅ Determine language
         const lang = (lan && annoyQuestions[lan]) ? lan : 'en';
 
-        // ✅ Merge default & user questions
         const selectedQuestions = [
-            ...(user.annoyallcardtitle ? [...user.annoyallcardtitle] : []),
             ...annoyQuestions[lang],
+            ...(user.annoyallcardtitle ? [...user.annoyallcardtitle] : []),
         ];
 
         let selectedindex = [];
 
-        // ✅ Handle logic based on purchase
         if (!user.isPurchase) {
             selectedindex = getRandomIndexes(selectedQuestions.length, 4);
         } else {
-            const fixed = user.question.filter(q => q.category === 'QW5ub3kgZnVuIENhcmQ=');
+            const fixed = user.question.filter(
+                q => q.category === 'QW5ub3kgZnVuIENhcmQ='
+            );
 
             fixed.forEach(item => {
                 if (item.answer?.annoycardtitle?.length) {
@@ -953,21 +1187,32 @@ exports.AnnoyCardtitle = async function (req, res, next) {
                 }
             });
 
-            if (!selectedindex.length) {
-                const fixedIndex = 0;
+            // ✅ remove duplicates
+            selectedindex = [...new Set(selectedindex)];
 
-                // Generate 3 random indexes EXCEPT 0
+            console.log(selectedindex);
+
+
+            const lastIndex = selectedQuestions.length - 1;
+
+            // ✅ CASE 1: user HAS saved indexes
+            if (selectedindex.length) {
+                const lastThree = selectedindex.slice(-3);
+                selectedindex = [lastIndex, ...lastThree];
+            }
+
+            // ✅ CASE 2: user has NO saved indexes
+            else {
                 const randomIndexes = getRandomIndexes(
                     selectedQuestions.length,
                     3,
-                    [fixedIndex]  // exclude 0
+                    [lastIndex] // exclude last index
                 );
 
-                selectedindex = [fixedIndex, ...randomIndexes];
+                selectedindex = [lastIndex, ...randomIndexes];
             }
         }
 
-        // ✅ Response
         res.status(200).json({
             status: 1,
             message: "Questions fetched successfully",
@@ -1000,20 +1245,7 @@ exports.AnnoyAddCardtitle = async function (req, res, next) {
         const cardtitleToAdd = Array.isArray(cardtitle) ? cardtitle : [cardtitle];
 
         // Add at FRONT instead of END
-        user.annoyallcardtitle.unshift(...cardtitleToAdd);
-
-        const fixed = user.question.find(q => q.category === 'QW5ub3kgZnVuIENhcmQ=');
-
-        if (fixed?.answer?.annoycardtitle) {
-            const updated = fixed.answer.annoycardtitle.map((num, index) => {
-                if (index === 0) return 0;
-                return num + 1;
-            });
-
-            fixed.answer.annoycardtitle = updated;
-        }
-
-
+        user.annoyallcardtitle.push(...cardtitleToAdd);
         // Save user
         await user.save();
 
@@ -1040,33 +1272,19 @@ exports.Emotion = async function (req, res, next) {
             throw new Error('categoryname, lan , word & question value is required');
         }
 
+        if (categoryname !== "RW1vdGlvbg==") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
-
+        // ===========================================
         let updated = false;
 
         // Ensure user.question is an array
@@ -1129,32 +1347,19 @@ exports.Confession = async function (req, res, next) {
             throw new Error('categoryname, lan & question value is required');
         }
 
+        if (categoryname !== "UXVlc3Rpb24=" && categoryname !== "Q29uZmVzc2lvbg==") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1165,13 +1370,17 @@ exports.Confession = async function (req, res, next) {
         // Build answer object
         const isQuestion = categoryname === "UXVlc3Rpb24=";
 
+        const titleMap = {
+            hi: { q: "प्रश्न", c: "कन्फेशन" },
+            es: { q: "Pregunta", c: "Confesión" },
+            ta: { q: "கேள்வி", c: "ஒப்புதல்" },
+            mr: { q: "प्रश्न", c: "कबुली" },
+            enhi: { q: "Sawal", c: "Confession" },
+            en: { q: "Question", c: "Confession" }
+        };
+
         let answerObj = {
-            confessionTitle:
-                lan === "hi"
-                    ? (isQuestion ? "प्रश्न" : "कन्फेशन")
-                    : lan === "es"
-                        ? (isQuestion ? "Pregunta" : "Confesión")
-                        : (isQuestion ? "Question" : "Confession")
+            confessionTitle: (titleMap[lan] || titleMap.en)[isQuestion ? "q" : "c"]
         };
 
         user.question = user.question.map(q => {
@@ -1236,16 +1445,18 @@ exports.HotnessCategory = async function (req, res) {
             let categoryTitle;
             let subCategoryTitle;
 
-            if (lan === 'hi') {
-                categoryTitle = item.hicategoryTitle || item.categoryTitle;
-                subCategoryTitle = item.hisubCatergoryTitle || item.subCatergoryTitle;
-            } else if (lan === 'es') {
-                categoryTitle = item.escategoryTitle || item.categoryTitle;
-                subCategoryTitle = item.essubCatergoryTitle || item.subCatergoryTitle;
-            } else {
-                categoryTitle = item.categoryTitle;
-                subCategoryTitle = item.subCatergoryTitle;
-            }
+            const langMap = {
+                hi: { cat: "hicategoryTitle", sub: "hisubCatergoryTitle" },
+                es: { cat: "escategoryTitle", sub: "essubCatergoryTitle" },
+                ta: { cat: "tacategoryTitle", sub: "tasubCatergoryTitle" },
+                mr: { cat: "mrcategoryTitle", sub: "mrsubCatergoryTitle" },
+                enhi: { cat: "enhicategoryTitle", sub: "enhisubCatergoryTitle" }
+            };
+
+            const selected = langMap[lan] || {};
+
+            categoryTitle = item[selected.cat] || item.categoryTitle;
+            subCategoryTitle = item[selected.sub] || item.subCatergoryTitle;
 
             const key = `${categoryTitle}_${item.categoryImage}`;
 
@@ -1309,32 +1520,19 @@ exports.Hotness = async function (req, res, next) {
             throw new Error('categoryname, lan , hotnessId & question value is required');
         }
 
+        if (categoryname !== "SG90bmVzcw==") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1398,32 +1596,19 @@ exports.FrndLove = async function (req, res, next) {
             throw new Error('categoryname, lan & question value is required');
         }
 
+        if (categoryname !== "TG92ZQ==" && categoryname !== "RnJpZW5k" && categoryname !== "Q3J1c2g=") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1486,32 +1671,19 @@ exports.Roast = async function (req, res, next) {
             throw new Error('categoryname, lan & question value is required');
         }
 
+        if (categoryname !== "Um9hc3Q=") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1568,32 +1740,19 @@ exports.Bluff = async function (req, res, next) {
             throw new Error('categoryname, lan & question value is required');
         }
 
+        if (categoryname !== "Qmx1ZmY=") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1650,32 +1809,19 @@ exports.Challenge = async function (req, res, next) {
             throw new Error('categoryname, lan & question value is required');
         }
 
+        if (categoryname !== "Q2hhbGxlbmdl") {
+            throw new Error('Invalid categoryname');
+        }
+
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1726,38 +1872,25 @@ exports.Challenge = async function (req, res, next) {
 // =============================== 11 question ===============================
 exports.HeavenHell = async function (req, res, next) {
     try {
-        const { id, categoryname, question, lan, que1, que2, que3, que4, avatarImg } = req.body;
+        const { id, categoryname, question, lan, que1, que2, que3, que4, que5, avatarImg } = req.body;
 
-        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4 || !avatarImg) {
-            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 & avatarImg value is required');
+        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4 || !que5 || !avatarImg) {
+            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 , que5 & avatarImg value is required');
+        }
+
+        if (categoryname !== "SGVhdmVuSGVsbA==") {
+            throw new Error('Invalid categoryname');
         }
 
         const user = await NUSER.findOne({ id: id });
         if (!user) {
             throw new Error('User not found');
         }
+        // =================== share count update
 
-        // =================== share count update =====================
+        await updateShareAndBadge(id, categoryname, user);
 
-        const categoryDoc = await CATEGORY.findOne({ 'category.name': categoryname });
-
-        if (categoryDoc) {
-            const deviceIds = await DEVICE.find().select("deviceId -_id");
-            const idList = deviceIds.map(d => d.deviceId);
-            const alreadyShared = idList.some(id => user.deviceId.includes(id));
-            if (!alreadyShared) {
-                // share increment only once per device
-                const today = new Date().toISOString().split("T")[0];
-                await CATEGORYANALYTICS.findOneAndUpdate(
-                    { date: today, category: categoryname },
-                    { $inc: { share: 1 } },
-                    { upsert: true, new: true }
-                );
-            }
-        }
-
-
-        // =========================================================
+        // ===========================================
 
         let updated = false;
 
@@ -1767,9 +1900,12 @@ exports.HeavenHell = async function (req, res, next) {
         }
 
         let answerObj = {
-            heavenhellque: [que1, que2, que3, que4],
+            heavenhellque: [que1, que2, que3, que4, que5],
             avatarImg: avatarImg
         };
+
+        console.log(answerObj);
+
 
         user.question = user.question.map(q => {
             if (q.category === "SGVhdmVuSGVsbA==") {
@@ -1839,7 +1975,7 @@ exports.HeavenHellQues = async function (req, res, next) {
         let finalIds = [];
 
         if (!user.isPurchase) {
-            finalIds = getRandom(adminQues, 4);
+            finalIds = getRandom(adminQues, 5);
         } else {
             if (Number(type) === 2) {
                 finalIds = getRandom(adminQues, 1);
@@ -1854,9 +1990,9 @@ exports.HeavenHellQues = async function (req, res, next) {
                     uid => !adminQues.includes(uid)
                 );
 
-                const fixed = userNotInAdmin.slice(0, 4);
+                const fixed = userNotInAdmin.slice(0, 5);
 
-                const remainingCount = 4 - fixed.length;
+                const remainingCount = 5 - fixed.length;
 
                 if (remainingCount > 0) {
                     const randomAdmin = getRandom(adminQues, remainingCount);
@@ -1880,6 +2016,66 @@ exports.HeavenHellQues = async function (req, res, next) {
         });
     }
 };
+// =============================== user view get ====================================
+exports.UserViews = async function (req, res, next) {
+    try {
+        const { id } = req.body;
+
+        const user = await USERANALYTICS.findOne({ id: id });
+        if (!user) {
+            throw new Error('user data not found');
+        }
+
+        const questions = user.questions.map(q => ({
+            category: q.category,
+            view: q.view,
+        }));
+
+        res.status(200).json({
+            status: 1,
+            message: 'Views found Successfully',
+            data: questions
+        });
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+// =============================== language update ====================================
+exports.UserLanguage = async function (req, res, next) {
+    try {
+        const { id, lan } = req.body;
+
+        if (!lan) {
+            throw new Error("Language (lan) is required");
+        }
+
+        const user = await NUSER.findOneAndUpdate(
+            { id: id },
+            { $set: { language: lan } },
+            { new: true }
+        );
+
+        if (!user) {
+            throw new Error('user data not found');
+        }
+
+
+        res.status(200).json({
+            status: 1,
+            message: 'Language updated Successfully',
+            data: user.language
+        });
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
 
 
 // ==============================================================================================
@@ -1987,10 +2183,54 @@ exports.CategoryWeb = async function (req, res, next) {
             });
         }
 
+        // ======================== block =============================
         let block = false;
         if (user.blockList && user.blockList.includes(req.body.ip)) {
             block = true;
         }
+        // ==================== allowed ======================================
+        let notAllowed = false;
+
+        const now = new Date();
+
+        const startOfDay = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            0, 0, 0, 0
+        ));
+
+        const endOfDay = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            23, 59, 59, 999
+        ));
+
+        // ✅ Step 1: find device
+        const device = await DEVICE.findOne({
+            webDeviceIds: req.body.ip
+        });
+
+        if (!device) {
+            // ✅ Step 2: count using deviceId
+            const todayCount = await NINBOX.countDocuments({
+                id: user.id,
+                ip: req.body.ip,
+                category: req.body.category,
+                createdAt: {
+                    $gte: startOfDay,
+                    $lte: endOfDay
+                }
+            });
+
+            // ✅ Step 3: apply limit
+            if (todayCount >= 3) {
+                notAllowed = true;
+            }
+        }
+
+        // ================================
 
         const inboxDoc = await NINBOX.findOne(
             { ip: req.body.ip },                // filter condition
@@ -2030,12 +2270,18 @@ exports.CategoryWeb = async function (req, res, next) {
 
             // Step 2: Merge with user.annoyallcardtitle (if exists)
             const mergedArray = Array.isArray(user.annoyallcardtitle)
-                ? [...user.annoyallcardtitle, ...baseArray]
+                ? [...baseArray, ...user.annoyallcardtitle]
                 : baseArray;
+
+            console.log(mergedArray, "merge");
+
 
             // Step 3: Get indices and find values
             const indices = matched.answer?.annoycardtitle || [];
             const annoycardvalue = indices.map(index => mergedArray[index]).filter(Boolean);
+            console.log(indices, "index");
+            console.log(annoycardvalue, "annoycardvalue");
+
 
             const userWithValues = {
                 ...user.toObject(),
@@ -2048,10 +2294,12 @@ exports.CategoryWeb = async function (req, res, next) {
                 message: "Data Found Successfully",
                 data: userWithValues,
                 block: block,
+                notAllowed: notAllowed,
                 usernot: usernot,
                 inboxDoc: responseData
             });
         }
+
 
         // Default response
         res.status(200).json({
@@ -2059,6 +2307,7 @@ exports.CategoryWeb = async function (req, res, next) {
             message: "Data Found Successfully",
             data: user,
             block: block,
+            notAllowed: notAllowed,
             usernot: usernot,
             inboxDoc: responseData
         });
@@ -2249,16 +2498,16 @@ exports.WebEmotionCardContent = async (req, res, next) => {
             return res.status(400).json({ status: 0, message: "No data found for this category" });
         }
 
-        let Content;
+        const contentMap = {
+            hi: "hiContent",
+            es: "esContent",
+            ta: "taContent",
+            mr: "mrContent",
+            enhi: "enhiContent"
+        };
 
-        if (req.body.lanText === "hi") {
-            Content = Data[0].hiContent;
-        } else if (req.body.lanText === "es") {
-            Content = Data[0].esContent;
-        } else {
-            Content = Data[0].Content;
-        }
-
+        const key = contentMap[req.body.lanText] || "Content";
+        let Content = Data[0][key];
         res.status(200).json({
             status: 1,
             message: "Success",
@@ -2285,15 +2534,16 @@ exports.WebChallengeCardContent = async (req, res, next) => {
             return res.status(400).json({ status: 0, message: "No data found" });
         }
 
-        let Content;
+        const contentMap = {
+            hi: "hiContent",
+            es: "esContent",
+            ta: "taContent",
+            mr: "mrContent",
+            enhi: "enhiContent"
+        };
 
-        if (req.body.lanText === "hi") {
-            Content = Data[0].hiContent;
-        } else if (req.body.lanText === "es") {
-            Content = Data[0].esContent;
-        } else {
-            Content = Data[0].Content;
-        }
+        const key = contentMap[req.body.lanText] || "Content";
+        let Content = Data[0][key];
 
         res.status(200).json({
             status: 1,
@@ -2440,21 +2690,17 @@ exports.WebRoastHostId = async (req, res) => {
 
 
             // default English
-            if (!lanText || lanText === 'en') {
-                obj.name = item.subCatergoryTitle;
-            }
-            // Hindi
-            else if (lanText === 'hi') {
-                obj.name = item.hisubCatergoryTitle || item.subCatergoryTitle;
-            }
-            // Spanish
-            else if (lanText === 'es') {
-                obj.name = item.essubCatergoryTitle || item.subCatergoryTitle;
-            }
-            // fallback for unknown language
-            else {
-                obj.name = item.subCatergoryTitle;
-            }
+            const langMap = {
+                hi: "hisubCatergoryTitle",
+                es: "essubCatergoryTitle",
+                ta: "tasubCatergoryTitle",
+                mr: "mrsubCatergoryTitle",
+                enhi: "enhisubCatergoryTitle"
+            };
+
+            const key = langMap[lanText];
+
+            obj.name = item[key] || item.subCatergoryTitle;
 
             return obj;
         });
@@ -2611,6 +2857,7 @@ exports.Verify = async function (req, res, next) {
         // :white_check_mark: declare outside so available everywhere
         let purchasestatus = "false";
         let gracePeriod = "false";
+        let subscriptionId = userData.subscriptionId || null;
         let dbPurchaseId = userData ? userData.purchaseId : null;
         if (req.body.platform) {
             // Decide which purchaseId/receipt to use
@@ -2622,7 +2869,6 @@ exports.Verify = async function (req, res, next) {
             }
             if (req.body.platform === "android" && purchaseDataToVerify) {
                 const packageName = "com.lol.android";
-                const subscriptionId = userData.subscriptionId || "weekly_premium";
                 const verifyResult = await verifyGooglePurchase(packageName, subscriptionId, purchaseDataToVerify);
                 const lineItem = verifyResult.lineItems?.[0];
                 switch (verifyResult?.subscriptionState) {
@@ -2646,7 +2892,9 @@ exports.Verify = async function (req, res, next) {
             }
             if (req.body.platform === "ios" && purchaseDataToVerify) {
 
-                const status = await verifyApplePurchase(purchaseDataToVerify, id);
+                const result = await verifyApplePurchase(purchaseDataToVerify, id);
+                const status = result?.status;
+                subscriptionId = result?.productId;
 
                 if ([1, 4].includes(status)) {
                     purchasestatus = "true";
@@ -2688,6 +2936,22 @@ exports.Verify = async function (req, res, next) {
             { id },
             { $set: updateData }
         );
+        // ========================= share and rply count ============================
+        const analytics = await USERANALYTICS.findOne({ id: id });
+
+        let totalShare = 0;
+        let totalReply = 0;
+
+        if (analytics?.questions?.length > 0) {
+            totalShare = analytics.questions.reduce(
+                (sum, q) => sum + (q.share || 0), 0
+            );
+
+            totalReply = analytics.questions.reduce(
+                (sum, q) => sum + (q.reply || 0), 0
+            );
+        }
+        // =====================================
 
         let response = {
             status: 1,
@@ -2705,14 +2969,26 @@ exports.Verify = async function (req, res, next) {
             response.purchasestatus = purchasestatus;
             response.gracePeriod = gracePeriod;
             response.purchaseId = dbPurchaseId ? dbPurchaseId : null;
-            if (req.body.lan === "hi") {
-                response.premiumtitle = premium.hiTitle || null;
-            } else if (req.body.lan === "es") {
-                response.premiumtitle = premium.esTitle || null;
-            } else {
-                response.premiumtitle = premium.title || null;
-            }
+            response.subscriptionId = subscriptionId;
+            const langMap = {
+                hi: "hiTitle",
+                es: "esTitle",
+                ta: "taTitle",
+                mr: "mrTitle",
+                enhi: "enhiTitle"
+            };
+
+            const key = langMap[req.body.lan] || "title";
+            response.premiumtitle = premium[key] || null;
             response.premiumid = premium ? req.body.platform === "android" ? premium.androidId : premium.iosId : null;
+            response.language = userData.language;
+            response.badge = userData.badge || null;
+            response.badgeImage = userData.badgeImage || null;
+            response.totalShare = totalShare;
+            response.totalReply = totalReply;
+            response.username = userData.username || null;
+            response.birthdate = userData.birthdate || null;
+            response.premiumQuestion = userData.premiumQuestion || null;
         }
         res.status(200).json(response);
     } catch (error) {
@@ -2722,3 +2998,4 @@ exports.Verify = async function (req, res, next) {
         });
     }
 };
+

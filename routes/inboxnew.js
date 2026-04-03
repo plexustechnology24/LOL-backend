@@ -12,6 +12,7 @@ const fs = require('fs');
 const axios = require('axios');
 const { validateRequestBody, verifyToken, verifyUserId } = require('../middleware/validateRequest');
 const FormData = require('form-data');
+const { PassThrough } = require('stream');
 
 
 // ⚙️ Uncomment this line on production (e.g., cPanel or Linux server)
@@ -311,12 +312,13 @@ router.post('/create', upload.fields([
   { name: 'uploadedImage', maxCount: 1 },
   { name: 'ques5audio', maxCount: 1 },
   { name: 'ques8audio', maxCount: 1 },
+  { name: 'hintAudio', maxCount: 1 },
 ]), validateRequestBody, async (req, res, next) => {
   try {
     // Process contentFile (audio with compression)
     if (req.files?.['contentFile']) {
       const contentFile = req.files['contentFile'][0];
-      const { filename, url } = await processAudioFile(contentFile, 'images/audio');
+      const { filename, url } = await processAudioFile(contentFile, 'images/question1/Audio');
       req.contentFile = filename;
       req.contentFileUrl = url;
     }
@@ -360,6 +362,13 @@ router.post('/create', upload.fields([
       const { filename, url } = await processAudioFile(ques8audio, 'images/question8/Audio');
       req.ques8audio = filename;
       req.ques8audioUrl = url;
+    }
+
+    if (req.files?.['hintAudio']) {
+      const hintAudio = req.files['hintAudio'][0];
+      const { filename, url } = await processAudioFile(hintAudio, 'images/hint/Audio');
+      req.hintAudio = filename;
+      req.hintAudioUrl = url;
     }
 
     inboxControllers.Create(req, res, next);
@@ -455,8 +464,8 @@ router.post('/merge', upload.fields([
   const requestId = `REQ-${Date.now()}`;
   console.log(`\n🚀 [${requestId}] POST /merge — started`);
 
-  const audioUrl    = req.body.audioUrl;
-  const videoUrl    = req.body.videoUrl;
+  const audioUrl = req.body.audioUrl;
+  const videoUrl = req.body.videoUrl;
   const hasVideoFile = req.files && req.files.videoFile;
 
   console.log(`📋 [${requestId}] Inputs → audioUrl: ${!!audioUrl}, videoUrl: ${!!videoUrl}, videoFile: ${!!hasVideoFile}, image: ${!!(req.files && req.files.image)}`);
@@ -536,9 +545,9 @@ router.post('/merge', upload.fields([
       console.log(`📁 [${requestId}] Created upload directory: ${uploadDir}`);
     }
 
-    const timestamp   = Date.now();
-    const imageExt    = path.extname(req.files.image[0].originalname);
-    const imagePath   = path.join(uploadDir, `img-${timestamp}${imageExt}`);
+    const timestamp = Date.now();
+    const imageExt = path.extname(req.files.image[0].originalname);
+    const imagePath = path.join(uploadDir, `img-${timestamp}${imageExt}`);
     const outputVideoPath = path.join(uploadDir, `output-${timestamp}.mp4`);
 
     console.log(`💾 [${requestId}] Writing image to disk: ${imagePath}`);
@@ -550,7 +559,7 @@ router.post('/merge', upload.fields([
     const imageUploadPromise = (async () => {
       try {
         console.log(`☁️  [${requestId}] Starting S3 image upload...`);
-        const imageBuffer   = req.files.image[0].buffer;
+        const imageBuffer = req.files.image[0].buffer;
         const imageMimeType = req.files.image[0].mimetype || 'image/jpeg';
 
         const { filename: imageFilename, url: imageUrl } = await uploadToS3(
@@ -570,7 +579,7 @@ router.post('/merge', upload.fields([
       }
     })();
 
-    let ffmpegCommand     = ffmpeg();
+    let ffmpegCommand = ffmpeg();
     let allFilesToCleanup = [imagePath, outputVideoPath];
 
     // ── BRANCH: Audio ─────────────────────────────────────────────────────────
@@ -581,7 +590,7 @@ router.post('/merge', upload.fields([
 
       try {
         console.log(`⬇️  [${requestId}] Downloading audio: ${audioUrl}`);
-        const dlStart  = Date.now();
+        const dlStart = Date.now();
         const response = await axios.get(audioUrl, {
           responseType: 'arraybuffer',
           timeout: 15000,
@@ -625,7 +634,7 @@ router.post('/merge', upload.fields([
           '-level', '3.0'
         ]);
 
-    // ── BRANCH: Video (file or URL) ───────────────────────────────────────────
+      // ── BRANCH: Video (file or URL) ───────────────────────────────────────────
     } else if (videoUrl || hasVideoFile) {
       console.log(`🎥 [${requestId}] Mode: image + ${hasVideoFile ? 'uploaded video file' : 'video URL'}`);
       const videoPath = path.join(uploadDir, `vid-${timestamp}.mp4`);
@@ -711,10 +720,10 @@ router.post('/merge', upload.fields([
         });
       }
 
-      const extraWidth  = videoUrl ? 200 : 0;
-      const targetWidth  = Math.ceil((imageDimensions.width + extraWidth) / 2) * 2;
+      const extraWidth = videoUrl ? 200 : 0;
+      const targetWidth = Math.ceil((imageDimensions.width + extraWidth) / 2) * 2;
       const targetHeight = Math.ceil(imageDimensions.height / 2) * 2;
-      const isLandscape  = videoDimensions.width > videoDimensions.height;
+      const isLandscape = videoDimensions.width > videoDimensions.height;
 
       console.log(`🎯 [${requestId}] Target: ${targetWidth}x${targetHeight} | Video orientation: ${isLandscape ? 'landscape' : 'portrait'}`);
 
@@ -802,13 +811,13 @@ router.post('/merge', upload.fields([
     const timeoutId = setTimeout(() => {
       if (!responseAlreadySent && !res.headersSent) {
         console.error(`⏱️  [${requestId}] Processing timeout after ${timeoutDuration / 1000}s — killing FFmpeg`);
-        try { ffmpegCommand.kill('SIGKILL'); } catch (_) {}
+        try { ffmpegCommand.kill('SIGKILL'); } catch (_) { }
         cleanupFiles(allFilesToCleanup);
         sendResponse(408, { message: 'Operation timeout.' });
       }
     }, timeoutDuration);
 
-    let lastProgressTime    = Date.now();
+    let lastProgressTime = Date.now();
     let lastProgressPercent = 0;
 
     // ── FFmpeg events ──────────────────────────────────────────────────────────
@@ -827,7 +836,7 @@ router.post('/merge', upload.fields([
 
         if (now - lastProgressTime > 45000) {
           console.error(`❌ [${requestId}] FFmpeg stalled — no progress for 45s, killing process`);
-          try { ffmpegCommand.kill('SIGKILL'); } catch (_) {}
+          try { ffmpegCommand.kill('SIGKILL'); } catch (_) { }
         }
         lastProgressTime = now;
       })
@@ -1031,4 +1040,144 @@ router.post('/voice-masking', upload.fields([
   }
 });
 
+
+// =============================================== 1 que hatu remove karavi nakhu che  ================================================================
+async function decreasePitch(inputBuffer, mimetype) {
+  return new Promise((resolve, reject) => {
+    const inputStream = new PassThrough();
+    const outputStream = new PassThrough();
+    const chunks = [];
+
+    inputStream.end(inputBuffer);
+
+    // Detect input format from mimetype
+    let inputFormat = 'mp3';
+    if (mimetype) {
+      if (mimetype.includes('webm')) inputFormat = 'webm';
+      else if (mimetype.includes('wav')) inputFormat = 'wav';
+      else if (mimetype.includes('ogg')) inputFormat = 'ogg';
+      else if (mimetype.includes('mp4')) inputFormat = 'mp4';
+    }
+
+    console.log(`🎚️ Input format detected: ${inputFormat}`);
+
+    ffmpeg(inputStream)
+      .inputFormat(inputFormat)
+      .audioFilters('rubberband=pitch=0.94') // ✅ natural pitch change
+      .toFormat('mp3')
+      .on('error', (err) => {
+        console.error('❌ FFmpeg pitch error:', err.message);
+        reject(err);
+      })
+      .on('end', () => {
+        console.log('✅ FFmpeg pitch shift complete');
+        resolve(Buffer.concat(chunks));
+      })
+      .pipe(outputStream);
+
+    outputStream.on('data', (chunk) => chunks.push(chunk));
+    outputStream.on('error', reject);
+  });
+}
+
+// ─── Route ─────────────────────────────────────────────────────────────────
+router.post('/voice-masking2', upload.fields([
+  { name: 'confessionVoice', maxCount: 1 },
+]), validateRequestBody, async (req, res, next) => {
+  try {
+    console.log('▶️  enter /voice-masking');
+
+    // ── Validate file ──────────────────────────────────────────────────────
+    if (!req.files?.['confessionVoice']) {
+      return res.status(400).json({
+        success: false,
+        message: 'confessionVoice file is required',
+      });
+    }
+
+    const confessionVoice = req.files['confessionVoice'][0];
+    console.log('📁 Original file received:', confessionVoice.originalname);
+    console.log('📁 Mimetype:', confessionVoice.mimetype);
+
+    let finalBuffer = confessionVoice.buffer;
+    let voiceConverted = false;
+    let voiceId = null;
+
+    // ── Step 1 : Decrease pitch ────────────────────────────────────────────
+    try {
+      console.log('🎙️ Decreasing pitch of audio...');
+
+      const pitchPromise = decreasePitch(
+        confessionVoice.buffer,
+        confessionVoice.mimetype
+      );
+
+      // 15-second safety timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Pitch shift timeout')), 15000)
+      );
+
+      const pitchedBuffer = await Promise.race([pitchPromise, timeoutPromise]);
+
+      console.log('✅ Pitch decreased successfully');
+      finalBuffer = pitchedBuffer;
+      voiceConverted = true;
+      voiceId = 'pitch-shifted';
+
+    } catch (pitchError) {
+      console.warn('⚠️ Pitch shift failed, using original audio:', pitchError.message);
+      finalBuffer = confessionVoice.buffer;   // fallback to original
+      voiceConverted = false;
+    }
+
+    // ── Step 2 : Compress audio ────────────────────────────────────────────
+    try {
+      console.log('🎵 Compressing audio...');
+      const compressedBuffer = await compressAudioBuffer(
+        finalBuffer,
+        confessionVoice.mimetype
+      );
+      finalBuffer = compressedBuffer;
+      console.log('✅ Audio compressed successfully');
+    } catch (compressionError) {
+      console.warn('⚠️ Compression failed, using uncompressed audio:', compressionError.message);
+      // finalBuffer remains unchanged
+    }
+
+    // ── Step 3 : Upload to S3 ──────────────────────────────────────────────
+    console.log('☁️ Uploading to S3...');
+
+    const prefix = voiceConverted ? 'masked-' : 'original-';
+    const audioPath = 'images/question1/Audio';
+
+    const { filename, url } = await uploadFileToS3WithWorker(
+      finalBuffer,
+      'audio/mpeg',
+      `${prefix}${confessionVoice.originalname}`,
+      'audio-masked',
+      audioPath,
+      '.mp3'
+    );
+
+    console.log('✅ Upload complete:', url);
+
+    // ── Attach results to request ──────────────────────────────────────────
+    req.confessionVoice = filename;
+    req.confessionVoiceUrl = url;
+    req.voiceConverted = voiceConverted;
+    req.usedVoiceId = voiceId;
+    req.audioStatus = voiceConverted ? 'masked' : 'original';
+
+    // ── Hand off to controller ─────────────────────────────────────────────
+    inboxControllers.VoiceMasking2(req, res, next);
+
+  } catch (error) {
+    console.error('❌ Error during voice masking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Voice masking failed',
+      details: error.message,
+    });
+  }
+});
 module.exports = router;

@@ -9,6 +9,7 @@ const deviceSchemaData = new Schema({
     deviceType: String,
     deviceId: String,
     emailIds: [String],
+    webDeviceIds: [String],
 }, 
 { 
     versionKey: false,

@@ -1,5 +1,22 @@
 const PREMIUM = require('../models/premium');
 const axios = require('axios');
+const { transliterate } = require("transliteration");
+
+function convertToHinglish(text) {
+    // Emoji detect regex
+    const emojiRegex = /([\u231A-\uD83E\uDDFF\uD83C-\uDBFF\uDC00-\uDFFF]+)/g;
+
+    const emojis = text.match(emojiRegex) || [];
+
+    // Remove emoji temporarily
+    const textWithoutEmoji = text.replace(emojiRegex, '');
+
+    // Transliterate only text
+    const hinglishText = transliterate(textWithoutEmoji);
+
+    // Add emoji back at end
+    return hinglishText.trim() + " " + emojis.join(" ");
+}
 
 
 async function translateText(text, from, to) {
@@ -22,8 +39,9 @@ exports.Create = async function (req, res, next) {
         if (req.body.title) {
             req.body.hiTitle = await translateText(req.body.title, "en", "hi");
             req.body.esTitle = await translateText(req.body.title, "en", "es");
-            // req.body.frDescription = await translateText(req.body.Description, "en", "fr");
-            // req.body.urDescription = await translateText(req.body.Description, "en", "ur");
+            req.body.taTitle = await translateText(req.body.title, "en", "ta");
+            req.body.mrTitle = await translateText(req.body.title, "en", "mr");
+            req.body.enhiTitle = await convertToHinglish(req.body.hiTitle);
         }
         // 1️⃣ Count how many plans exist
         const count = await PREMIUM.countDocuments();
@@ -92,8 +110,9 @@ exports.Update = async function (req, res, next) {
         if (req.body.title) {
             req.body.hiTitle = await translateText(req.body.title, "en", "hi");
             req.body.esTitle = await translateText(req.body.title, "en", "es");
-            // req.body.frDescription = await translateText(req.body.Description, "en", "fr");
-            // req.body.urDescription = await translateText(req.body.Description, "en", "ur");
+            req.body.taTitle = await translateText(req.body.title, "en", "ta");
+            req.body.mrTitle = await translateText(req.body.title, "en", "mr");
+            req.body.enhiTitle = await convertToHinglish(req.body.hiTitle);
         }
 
         if ( req.body.isActive === true ) {

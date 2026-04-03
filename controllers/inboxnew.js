@@ -1,9 +1,12 @@
 const INBOX = require('../models2/inboxnew');
 const USER = require('../models2/usernew');
 const CONTENT = require('../models/content');
+const DEVICE = require('../models/device');
 const { getName } = require('country-list');
 const OneSignal = require('onesignal-node');
 const axios = require('axios');
+
+const { updateReplyAndBadge } = require('../helpers/replyHelper');
 
 // Initialize the OneSignal Client
 const client = new OneSignal.Client(
@@ -91,6 +94,7 @@ exports.Create = async function (req, res, next) {
                 defaultHintImages[Math.floor(Math.random() * defaultHintImages.length)];
         }
 
+        req.body.hintAudio = req.hintAudioUrl || null;
         // =================== Handle language content ===================
         const { lanText } = req.body;
         const contentList = await CONTENT.find();
@@ -99,8 +103,9 @@ exports.Create = async function (req, res, next) {
 
         if (lanText === "hi") finalContent = randomItem.hiContent || finalContent;
         else if (lanText === "es") finalContent = randomItem.esContent || finalContent;
-        else if (lanText === "fr") finalContent = randomItem.frContent || finalContent;
-        else if (lanText === "ur") finalContent = randomItem.urContent || finalContent;
+        else if (lanText === "mr") finalContent = randomItem.mrContent || finalContent;
+        else if (lanText === "ta") finalContent = randomItem.taContent || finalContent;
+        else if (lanText === "enhi") finalContent = randomItem.enhiContent || finalContent;
 
         req.body.hintContent = finalContent;
 
@@ -149,6 +154,46 @@ exports.Create = async function (req, res, next) {
         }
 
         req.body.ip = req.body.deviceIp;
+
+        // =================== Daily Limit Check (IP + Category) ===================
+
+        // get today's start & end
+        const now = new Date();
+
+        const startOfDay = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            0, 0, 0, 0
+        ));
+
+        const endOfDay = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            23, 59, 59, 999
+        ));
+
+        const device = await DEVICE.findOne({
+            webDeviceIds: req.body.deviceIp
+        });
+
+        // count today's entries
+        if (!device) {
+            todayCount = await INBOX.countDocuments({
+                category: req.body.category,
+                ip: req.body.deviceIp,
+                createdAt: {
+                    $gte: startOfDay,
+                    $lte: endOfDay
+                }
+            });
+
+            // if limit reached → throw error
+            if (todayCount >= 3) {
+                throw new Error("You have reached today's limit for this category");
+            }
+        }
 
         // =================== Handle user & block list ===================
         const User = await USER.findOne({ id: req.body.id });
@@ -230,7 +275,10 @@ exports.Create = async function (req, res, next) {
             ...(req.body.heavenHellBgMdlImg && { heavenHellBgMdlImg: req.body.heavenHellBgMdlImg }),
             ...(req.body.heavenHellType && { heavenHellType: req.body.heavenHellType }),
         };
+        // =================== rePLY and badge update (async) ===================
 
+        await updateReplyAndBadge(req.body.id, req.body.category);
+        
         // =================== Create INBOX ===================
         const dataCreate = await INBOX.create(req.body);
         const filteredData = dataCreate.toObject();
@@ -484,6 +532,7 @@ exports.ReadPagination = async function (req, res, next) {
                     ? item.hintImage
                     : defaultHintImages[Math.floor(Math.random() * defaultHintImages.length)],
                 hintContent: item.hintContent,
+                hintAudio: item.hintAudio || null,
                 location: item.location,
                 country: item.country,
                 ip: item.ip,
@@ -542,8 +591,27 @@ exports.VoiceMasking = async function (req, res, next) {
     try {
         res.status(201).json({
             status: 1,
-            message: req.voiceConverted 
-                ? 'Voice converted successfully' 
+            message: req.voiceConverted
+                ? 'Voice converted successfully'
+                : 'Voice uploaded successfully (conversion unavailable)',
+            data: req.confessionVoiceUrl,
+            audioStatus: req.audioStatus
+        });
+    } catch (error) {
+        console.error('Full error object:', error);
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
+exports.VoiceMasking2 = async function (req, res, next) {
+    try {
+        res.status(201).json({
+            status: 1,
+            message: req.voiceConverted
+                ? 'Voice converted successfully'
                 : 'Voice uploaded successfully (conversion unavailable)',
             data: req.confessionVoiceUrl,
             audioStatus: req.audioStatus

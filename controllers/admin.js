@@ -22,6 +22,14 @@ const BLUFFCARBG = require('../models/bluffCardBg');
 const HEAVENHELLCARBG = require('../models/heavenHellCardBg');
 const TEMP = require('../models/temp');
 const COLLAB = require('../models/collab');
+const PICROAST = require('../models/picRoastContent');
+const CONFESSION = require('../models/confessionContent');
+const HOTNESSCONTENT = require('../models/hotnessContent');
+const FRIENDCONTENT = require('../models/friendContent');
+const ROAST = require('../models/roastContent');
+const BLUFFCONTENT = require('../models/bluffContent');
+const HELLHEAVENCONTENT = require('../models/heavenHellContent');
+const COMINGSOONSUGGESTION = require('../models/comingSoonSuggestion');
 
 
 
@@ -406,6 +414,30 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         break;
       case '13':
         Model = HEAVENHELLCARBG;
+        break;
+      case '14':
+        Model = PICROAST;
+        break;
+      case '15':
+        Model = CONFESSION;
+        break;
+      case '16':
+        Model = HOTNESSCONTENT;
+        break;
+      case '17':
+        Model = FRIENDCONTENT;
+        break;
+      case '18':
+        Model = ROAST;
+        break;
+      case '19':
+        Model = BLUFFCONTENT;
+        break;
+      case '20':
+        Model = HELLHEAVENCONTENT;
+        break;
+      case '21':
+        Model = COMINGSOONSUGGESTION;
         break;
       default:
         throw new Error('Invalid TypeId');

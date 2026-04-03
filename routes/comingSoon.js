@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const comingSoonControllers = require('../controllers/comingSoon')
+const { validateRequestBody, verifyToken, verifyUserId } = require('../middleware/validateRequest');
 const multer = require('multer')
 
 const storage = multer.diskStorage({
@@ -20,11 +21,13 @@ router.post('/create', upload.none(''), comingSoonControllers.Create);
 
 router.post('/read', comingSoonControllers.Read);
 
+router.post('/suggestion/read', comingSoonControllers.SuggestionRead);
+
 router.patch('/update/:id', upload.none(''),comingSoonControllers.Update);
 
 router.delete('/delete/:id', comingSoonControllers.Delete);
 
-router.post('/find', upload.none(''), comingSoonControllers.Find);
+router.post('/find', upload.none(''), validateRequestBody, verifyToken, verifyUserId, comingSoonControllers.Find);
 
 router.post('/vote/:id', upload.none(''), comingSoonControllers.AddOriginalVote);
 
