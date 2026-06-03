@@ -14,18 +14,15 @@ const HOTNESSCATEGORY = require('../models/hotnessCategory');
 const EMOJI = require('../models/emotionEmoji');
 const CONTENT = require('../models/emotionContent');
 const HEAVENHELLQUE = require('../models/heavenHellQue');
-const CHALLENGECONTENT = require('../models/challengeContent');
 const USERANALYTICS = require('../models2/userAnalytics');
 const COLLAB = require('../models/collab');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const { v4: uuidv4 } = require("uuid");
-const crypto = require('crypto');
 const SECRET_KEY = 'LOL-KEY';
 
 const { google } = require("googleapis");
 const axios = require("axios");
-const cheerio = require("cheerio");
 
 const { updateShareAndBadge } = require('../helpers/analyticsHelper');
 
@@ -524,32 +521,6 @@ exports.UpdateLink2 = async function (req, res, next) {
     }
 };
 
-exports.AutoMessage = async function (req, res, next) {
-    try {
-
-        const { id, autoMessage } = req.body;
-
-        if (!id || !autoMessage) {
-            throw new Error("id and autoMessage are required");
-        }
-
-        const dataUpdate = await NUSER.findOneAndUpdate({ id: id }, req.body, { new: true });
-        if (!dataUpdate) {
-            throw new Error('User not found');
-        }
-
-        res.status(200).json({
-            status: 1,
-            message: 'Data Updated Successfully',
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
 exports.PauseLink = async function (req, res, next) {
     try {
         const { id, pauseLink, timeperiod } = req.body;
@@ -853,10 +824,10 @@ exports.StaticQueUpdate = async function (req, res, next) {
         // Build answer object
         let answerObj = {
             word: req.body.word,
-            image: req.file ? req.file.s3Url : null,
+            image: req.file?.s3Url ? req.file.s3Url : null,
             timestamp: req.body.timestamp,
             quetype: req.body.quetype,
-            thumbnailUrl: req.file ? req.file.thumbnailUrl : null,
+            thumbnailUrl: req.file?.thumbnailUrl ? req.file.thumbnailUrl : null,
             prankname: req.body.prankname
         };
 
@@ -892,7 +863,6 @@ exports.StaticQueUpdate = async function (req, res, next) {
                 });
             }
         }
-
         await user.save();
 
         res.status(200).json({
@@ -1162,7 +1132,7 @@ exports.AnnoyCardtitle = async function (req, res, next) {
     try {
         const { id, lan } = req.body;
 
-        const user = await NUSER.findOne({ id });
+        const user = await NUSER.findOne({ id }).lean();
         if (!user) throw new Error('User not found');
 
         const lang = (lan && annoyQuestions[lan]) ? lan : 'en';
@@ -1173,25 +1143,23 @@ exports.AnnoyCardtitle = async function (req, res, next) {
         ];
 
         let selectedindex = [];
+        const fixed = user.question.filter(
+            q => q.category === 'QW5ub3kgZnVuIENhcmQ='
+        );
 
-        if (!user.isPurchase) {
+        fixed.forEach(item => {
+            if (item.answer?.annoycardtitle?.length) {
+                selectedindex.push(...item.answer.annoycardtitle);
+            }
+        });
+
+        // ✅ remove duplicates
+        selectedindex = [...new Set(selectedindex)];
+        console.log(selectedindex);
+
+        if (!selectedindex.length) {
             selectedindex = getRandomIndexes(selectedQuestions.length, 4);
         } else {
-            const fixed = user.question.filter(
-                q => q.category === 'QW5ub3kgZnVuIENhcmQ='
-            );
-
-            fixed.forEach(item => {
-                if (item.answer?.annoycardtitle?.length) {
-                    selectedindex.push(...item.answer.annoycardtitle);
-                }
-            });
-
-            // ✅ remove duplicates
-            selectedindex = [...new Set(selectedindex)];
-
-            console.log(selectedindex);
-
 
             const lastIndex = selectedQuestions.length - 1;
 
@@ -1237,9 +1205,9 @@ exports.AnnoyAddCardtitle = async function (req, res, next) {
         if (!user) throw new Error('User not found');
 
         // Check if user has purchased
-        if (!user.isPurchase) {
-            throw new Error('User has not purchased, cannot edit cardtitle');
-        }
+        // if (!user.isPurchase) {
+        //     throw new Error('User has not purchased, cannot edit cardtitle');
+        // }
 
         // Ensure cardtitle is an array
         const cardtitleToAdd = Array.isArray(cardtitle) ? cardtitle : [cardtitle];
@@ -1372,9 +1340,8 @@ exports.Confession = async function (req, res, next) {
 
         const titleMap = {
             hi: { q: "प्रश्न", c: "कन्फेशन" },
-            es: { q: "Pregunta", c: "Confesión" },
             ta: { q: "கேள்வி", c: "ஒப்புதல்" },
-            mr: { q: "प्रश्न", c: "कबुली" },
+            mr: { q: "प्रश्न", c: "कन्फेशन" },
             enhi: { q: "Sawal", c: "Confession" },
             en: { q: "Question", c: "Confession" }
         };
@@ -1447,7 +1414,6 @@ exports.HotnessCategory = async function (req, res) {
 
             const langMap = {
                 hi: { cat: "hicategoryTitle", sub: "hisubCatergoryTitle" },
-                es: { cat: "escategoryTitle", sub: "essubCatergoryTitle" },
                 ta: { cat: "tacategoryTitle", sub: "tasubCatergoryTitle" },
                 mr: { cat: "mrcategoryTitle", sub: "mrsubCatergoryTitle" },
                 enhi: { cat: "enhicategoryTitle", sub: "enhisubCatergoryTitle" }
@@ -1872,10 +1838,10 @@ exports.Challenge = async function (req, res, next) {
 // =============================== 11 question ===============================
 exports.HeavenHell = async function (req, res, next) {
     try {
-        const { id, categoryname, question, lan, que1, que2, que3, que4, que5, avatarImg } = req.body;
+        const { id, categoryname, question, lan, que1, que2, que3, que4, que5 } = req.body;
 
-        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4 || !que5 || !avatarImg) {
-            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 , que5 & avatarImg value is required');
+        if (!categoryname || !question || !lan || !que1 || !que2 || !que3 || !que4 || !que5) {
+            throw new Error('categoryname, lan , que1 , que2 , que3 , que4 , que5 value is required');
         }
 
         if (categoryname !== "SGVhdmVuSGVsbA==") {
@@ -1900,8 +1866,7 @@ exports.HeavenHell = async function (req, res, next) {
         }
 
         let answerObj = {
-            heavenhellque: [que1, que2, que3, que4, que5],
-            avatarImg: avatarImg
+            heavenhellque: [que1, que2, que3, que4, que5]
         };
 
         console.log(answerObj);
@@ -1950,22 +1915,34 @@ exports.HeavenHell = async function (req, res, next) {
 
 exports.HeavenHellQues = async function (req, res, next) {
     try {
-        const { id, lan, type } = req.body;
+        const { id, lan } = req.body;
 
-        if (!lan || !type) {
-            throw new Error('lan , type  value is required');
+        if (!lan) {
+            throw new Error('lan value is required');
         }
 
-        const user = await NUSER.findOne({ id: id });
+        const user = await NUSER.findOne({ id: id }).lean();
         if (!user) throw new Error('User not found');
 
         const ques = await HEAVENHELLQUE.find();
 
-        const adminQues = ques.map(q =>
-            lan === 'hi' ? q.hiContent :
-                lan === 'es' ? q.esContent :
-                    q.Content
-        );
+        const adminQues = ques.map(q => {
+            const langMap = {
+                hi: q.hiContent,
+                ta: q.taContent,
+                mr: q.mrContent,
+                enhi: q.enhiContent
+            };
+
+            return langMap[lan] || q.Content;
+        });
+
+        const userQuesAll = user.heavenhellque || [];
+
+        const userQues = user.question
+            .filter(q => q.category === "SGVhdmVuSGVsbA==")
+            .map(q => q.answer?.heavenhellque || [])
+            .flat();
 
         const getRandom = (arr, count) => {
             const shuffled = [...arr].sort(() => 0.5 - Math.random());
@@ -1974,39 +1951,22 @@ exports.HeavenHellQues = async function (req, res, next) {
 
         let finalIds = [];
 
-        if (!user.isPurchase) {
+        if (!userQues.length) {
             finalIds = getRandom(adminQues, 5);
         } else {
-            if (Number(type) === 2) {
-                finalIds = getRandom(adminQues, 1);
-            } else {
-                let userIds = user.question
-                    .filter(q => q.category === "SGVhdmVuSGVsbA==")
-                    .map(q => q.answer.heavenhellque)
-                    .flat();
-
-                userIds = userIds.map(id => id.toString());
-                const userNotInAdmin = userIds.filter(
-                    uid => !adminQues.includes(uid)
-                );
-
-                const fixed = userNotInAdmin.slice(0, 5);
-
-                const remainingCount = 5 - fixed.length;
-
-                if (remainingCount > 0) {
-                    const randomAdmin = getRandom(adminQues, remainingCount);
-                    finalIds = [...fixed, ...randomAdmin];
-                } else {
-                    finalIds = fixed;
-                }
-            }
+            finalIds = userQues
         }
+
+        const mergedQuestions = [
+            ...adminQues,
+            ...userQuesAll
+        ];
 
         res.status(200).json({
             status: 1,
             message: 'Ques find successfully',
-            data: finalIds
+            questions: mergedQuestions,
+            selectedquestions: finalIds
         });
 
     } catch (error) {
@@ -2016,6 +1976,59 @@ exports.HeavenHellQues = async function (req, res, next) {
         });
     }
 };
+
+
+exports.HeavenHellAddQues = async function (req, res, next) {
+    try {
+        const { id, ques } = req.body;
+
+        const user = await NUSER.findOne({ id }).lean();
+        if (!user) throw new Error('User not found');
+
+        // Ensure ques is an array
+        const quesToAdd = Array.isArray(ques) ? ques : [ques];
+
+        // Add at FRONT instead of END
+        user.heavenhellque = user.heavenhellque || [];
+        user.heavenhellque.push(...quesToAdd);
+        user.question = user.question.map(q => {
+            if (q.category === "SGVhdmVuSGVsbA==") {
+
+                // ensure array exists
+                q.answer.heavenhellque = q.answer.heavenhellque || [];
+
+                // 👉 Replace FIRST or push
+                if (q.answer.heavenhellque.length > 0) {
+                    q.answer.heavenhellque[0] = quesToAdd[0];
+                } else {
+                    q.answer.heavenhellque.push(...quesToAdd);
+                }
+            }
+            return q;
+        });
+        // Save user
+        await NUSER.updateOne(
+            { id },
+            {
+                heavenhellque: user.heavenhellque,
+                question: user.question
+            }
+        );
+
+        // Response
+        res.status(200).json({
+            status: 1,
+            message: "Question added successfully",
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message
+        });
+    }
+};
+
 // =============================== user view get ====================================
 exports.UserViews = async function (req, res, next) {
     try {
@@ -2462,8 +2475,7 @@ exports.WebEmotionCardPreview = async (req, res, next) => {
                 CardBg: CardBg[0].CardBg,
                 Emoji: Emoji[0].Emoji,
                 Content: Content[0].Content,
-                hiContent: Content[0].hiContent,
-                esContent: Content[0].esContent,
+                hiContent: Content[0].hiContent
             }
         });
 
@@ -2472,92 +2484,6 @@ exports.WebEmotionCardPreview = async (req, res, next) => {
     }
 };
 
-
-exports.WebEmotionCardContent = async (req, res, next) => {
-    try {
-        const decibel = Number(req.body.decibel);
-        if (isNaN(decibel)) return res.status(400).json({ status: 0, message: "Decibel must be a number" });
-
-        const getCategory = (decibel) => {
-            const tubeDecibel = Math.max(decibel - 15, 0);
-            return tubeDecibel >= 0 && tubeDecibel <= 22.5 ? "Sad" :
-                tubeDecibel <= 45 ? "Happy" :
-                    tubeDecibel <= 67.5 ? "Love" :
-                        tubeDecibel <= 100 ? "Angry" :
-                            "Sad";
-        };
-
-        const Category = getCategory(decibel);
-        if (!Category) return res.status(400).json({ status: 0, message: "Invalid decibel value" });
-
-        const [Data] = await Promise.all([
-            CONTENT.aggregate([{ $match: { Category } }, { $sample: { size: 1 } }])
-        ]);
-
-        if (!Data[0]) {
-            return res.status(400).json({ status: 0, message: "No data found for this category" });
-        }
-
-        const contentMap = {
-            hi: "hiContent",
-            es: "esContent",
-            ta: "taContent",
-            mr: "mrContent",
-            enhi: "enhiContent"
-        };
-
-        const key = contentMap[req.body.lanText] || "Content";
-        let Content = Data[0][key];
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                Content: Content,
-            }
-        });
-
-
-    } catch (error) {
-        res.status(400).json({ status: 0, message: error.message });
-    }
-};
-
-
-exports.WebChallengeCardContent = async (req, res, next) => {
-    try {
-
-        const [Data] = await Promise.all([
-            CHALLENGECONTENT.aggregate([{ $sample: { size: 1 } }])
-        ]);
-
-        if (!Data[0]) {
-            return res.status(400).json({ status: 0, message: "No data found" });
-        }
-
-        const contentMap = {
-            hi: "hiContent",
-            es: "esContent",
-            ta: "taContent",
-            mr: "mrContent",
-            enhi: "enhiContent"
-        };
-
-        const key = contentMap[req.body.lanText] || "Content";
-        let Content = Data[0][key];
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                Content: Content,
-            }
-        });
-
-
-    } catch (error) {
-        res.status(400).json({ status: 0, message: error.message });
-    }
-};
 
 
 exports.WebHotnessCardPreview = async (req, res, next) => {
@@ -2692,7 +2618,6 @@ exports.WebRoastHostId = async (req, res) => {
             // default English
             const langMap = {
                 hi: "hisubCatergoryTitle",
-                es: "essubCatergoryTitle",
                 ta: "tasubCatergoryTitle",
                 mr: "mrsubCatergoryTitle",
                 enhi: "enhisubCatergoryTitle"
@@ -2715,7 +2640,8 @@ exports.WebRoastHostId = async (req, res) => {
         res.status(200).json({
             status: 1,
             message: "Success",
-            data: shuffledData
+            data: shuffledData,
+            title: data[0].categoryTitle 
         });
 
     } catch (error) {
@@ -2858,6 +2784,7 @@ exports.Verify = async function (req, res, next) {
         let purchasestatus = "false";
         let gracePeriod = "false";
         let subscriptionId = userData.subscriptionId || null;
+        let purchaseState = null;
         let dbPurchaseId = userData ? userData.purchaseId : null;
         if (req.body.platform) {
             // Decide which purchaseId/receipt to use
@@ -2889,6 +2816,7 @@ exports.Verify = async function (req, res, next) {
                     default:
                         purchasestatus = "false";
                 }
+                purchaseState = verifyResult?.subscriptionState || null;
             }
             if (req.body.platform === "ios" && purchaseDataToVerify) {
 
@@ -2979,6 +2907,7 @@ exports.Verify = async function (req, res, next) {
             };
 
             const key = langMap[req.body.lan] || "title";
+            response.purchaseState = purchaseState;
             response.premiumtitle = premium[key] || null;
             response.premiumid = premium ? req.body.platform === "android" ? premium.androidId : premium.iosId : null;
             response.language = userData.language;

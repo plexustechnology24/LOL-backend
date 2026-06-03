@@ -6,13 +6,11 @@ const Schema = mongoose.Schema;
 const comingSoonData = new Schema({
     Title: String,
     hiTitle: String,
-    esTitle: String,
     mrTitle: String,
     taTitle: String,
     enhiTitle: String,
     Description: String,
     hiDescription: String,
-    esDescription: String,
     mrDescription: String,
     taDescription: String,
     enhiDescription: String,

@@ -31,6 +31,9 @@ router.post('/find', upload.none(''), validateRequestBody, verifyToken, verifyUs
 
 router.post('/vote/:id', upload.none(''), comingSoonControllers.AddOriginalVote);
 
+router.get('/analytics', comingSoonControllers.GetVoteAnalytics);
+
+
 
 
 

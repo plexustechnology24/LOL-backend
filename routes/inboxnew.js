@@ -338,6 +338,7 @@ router.post('/create', upload.fields([
       const { filename, url } = await processImageFile(annoyimage, 'annoyimage', 'images/annoyimage');
       req.annoyimage = filename;
       req.annoyimageUrl = url;
+      req.body.annoyimage = url;
     }
 
     // Process uploadedImage (direct upload without compression)

@@ -14,7 +14,110 @@ const client = new OneSignal.Client(
     'OTMxMGNiMmItYzgzZi00ODU0LTgyNjUtZmYwY2M1NWFmNGZk'
 );
 
-async function sendNotification(playerId, data = {}, iconUrl = '') {
+const notificationContent = {
+    en: [
+        {
+            title: "New anonymous message 📩",
+            desc: "Someone just sent you a message secretly. Tap to read it."
+        },
+        {
+            title: "You got an anonymous message 👀",
+            desc: "Someone sent you a message without revealing their name. Tap to check it."
+        },
+        {
+            title: "Anonymous message received 🔒",
+            desc: "Someone sent you a message without their name. Tap to open and read it."
+        }
+    ],
+    hi: [
+        {
+            title: "नया गुप्त संदेश 📩",
+            desc: "किसी ने आपको गुप्त रूप से संदेश भेजा है। पढ़ने के लिए टैप करें।"
+        },
+        {
+            title: "आपको एक गुप्त संदेश मिला 👀",
+            desc: "किसी ने बिना नाम बताए आपको संदेश भेजा है। चेक करने के लिए टैप करें।"
+        },
+        {
+            title: "गुप्त संदेश प्राप्त हुआ 🔒",
+            desc: "किसी ने बिना अपना नाम बताए संदेश भेजा है। खोलने के लिए टैप करें।"
+        }
+    ],
+    mr: [
+        {
+            title: "नवीन गुप्त संदेश 📩",
+            desc: "कोणीतरी तुम्हाला गुप्तपणे संदेश पाठवला आहे. वाचण्यासाठी टॅप करा."
+        },
+        {
+            title: "तुम्हाला एक गुप्त संदेश आला 👀",
+            desc: "कोणीतरी नाव न सांगता संदेश पाठवला आहे. पाहण्यासाठी टॅप करा."
+        },
+        {
+            title: "गुप्त संदेश प्राप्त झाला 🔒",
+            desc: "कोणीतरी आपले नाव न सांगता संदेश पाठवला आहे. उघडण्यासाठी टॅप करा."
+        }
+    ],
+    ta: [
+        {
+            title: "புதிய ரகசிய செய்தி 📩",
+            desc: "யாரோ உங்களுக்கு ரகசியமாக ஒரு செய்தி அனுப்பியுள்ளார். படிக்க தட்டவும்."
+        },
+        {
+            title: "உங்களுக்கு ஒரு ரகசிய செய்தி வந்துள்ளது 👀",
+            desc: "யாரோ தங்கள் பெயரை சொல்லாமல் ஒரு செய்தி அனுப்பியுள்ளனர். பார்க்க தட்டவும்."
+        },
+        {
+            title: "ரகசிய செய்தி பெறப்பட்டது 🔒",
+            desc: "யாரோ பெயர் தெரியாமல் ஒரு செய்தி அனுப்பியுள்ளார். திறக்க தட்டவும்."
+        }
+    ],
+    enhi: [
+        {
+            title: "New anonymous message aaya hai 📩",
+            desc: "Kisi ne aapko secretly message bheja hai. Read karne ke liye tap karo."
+        },
+        {
+            title: "Aapko anonymous message mila 👀",
+            desc: "Kisi ne bina naam bataye message bheja hai. Check karne ke liye tap karo."
+        },
+        {
+            title: "Anonymous message receive hua 🔒",
+            desc: "Kisi ne bina apna naam bataye message bheja hai. Open karne ke liye tap karo."
+        }
+    ]
+};
+
+const getRandomContentByLang = (lang) => {
+    const supportedLangs = ['en', 'hi', 'mr', 'ta', 'enhi'];
+
+    let finalLang;
+
+    if (lang === 'en') {
+        // 🔥 50-50 random between en & enhi
+        finalLang = Math.random() < 0.5 ? 'en' : 'enhi';
+    } else {
+        finalLang = supportedLangs.includes(lang) ? lang : 'en';
+    }
+
+    const options = notificationContent[finalLang];
+    const randomOption = options[Math.floor(Math.random() * options.length)];
+
+    return {
+        title: randomOption.title,
+        desc: randomOption.desc,
+        lang: finalLang
+    };
+};
+
+async function sendNotification(playerId, lang = 'en', data = {}, iconUrl = '') {
+
+    if (!playerId) {
+        throw new Error('Invalid player ID');
+    }
+
+
+    const { title, desc, lang: finalLang } = getRandomContentByLang(lang);
+
     const notification = {
         include_player_ids: [playerId],
         data: {
@@ -22,40 +125,31 @@ async function sendNotification(playerId, data = {}, iconUrl = '') {
             ...data,
         },
         headings: {
-            en: "You have a new message.",
-            hi: "आपको एक नया संदेश मिला है।",
-            es: "Tienes un nuevo mensaje."
+            en: title
         },
         contents: {
-            en: "Tap to open!",
-            hi: "खोलने के लिए टैप करें!",
-            es: "Toca para abrir!"
+            en: desc
         },
-        small_icon: "ic_stat_onesignal_default", // Android ke liye safe
+        small_icon: "ic_stat_onesignal_default",
         large_icon: iconUrl || undefined
     };
 
     try {
-        if (!playerId) {
-            throw new Error('Invalid player ID');
-        }
-
         const response = await client.createNotification(notification);
 
-        console.log("✅ Notification Sent Successfully:", response.body);
         return {
             success: true,
             response: response.body
         };
     } catch (error) {
-        console.error("❌ Error Sending Notification:", error);
+        console.error("❌ Error:", error);
+
         return {
             success: false,
             error: error.message || error
         };
     }
 }
-
 
 const defaultHintImages = [
     "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/hintimage1.png",
@@ -82,6 +176,8 @@ async function translateText(text, from, to) {
 
 exports.Create = async function (req, res, next) {
     try {
+        const { webCategory, timestamp } = req.body;
+
         // =================== Handle hint ===================
         req.body.hint = req.body.hint && req.body.hint !== "undefined" && req.body.hint !== "null" ? req.body.hint : "-";
 
@@ -95,19 +191,52 @@ exports.Create = async function (req, res, next) {
         }
 
         req.body.hintAudio = req.hintAudioUrl || null;
+
+
+        // =================== Handle user & block list ===================
+        const User = await USER.findOne({ id: req.body.id });
+        if (!User) throw new Error('User Not Found');
+        if (User.blockList && User.blockList.includes(req.body.ip)) {
+            throw new Error('You Are Blocked For This Link');
+        }
+
         // =================== Handle language content ===================
-        const { lanText } = req.body;
+        const data = User.question || [];
+
+        // 🔥 find once
+        let matchedItem;
+
+
+        if (webCategory === "UGljIFJvYXN0") {
+            matchedItem = data.find(
+                item =>
+                    item.category === webCategory &&
+                    String(item.answer?.timestamp) === String(timestamp)
+            );
+        } else {
+            matchedItem = data.find(item => item.category === webCategory);
+        }
+
+        
+
+        // ✅ set values
+        req.body.question = matchedItem?.question || "";
+        const lanText = matchedItem?.lan || "en";
+
+        console.log("Matched question:", req.body.question, "Language:", webCategory);
+
+
         const contentList = await CONTENT.find();
         const randomItem = contentList[Math.floor(Math.random() * contentList.length)];
         let finalContent = randomItem.Content || "-";
 
         if (lanText === "hi") finalContent = randomItem.hiContent || finalContent;
-        else if (lanText === "es") finalContent = randomItem.esContent || finalContent;
         else if (lanText === "mr") finalContent = randomItem.mrContent || finalContent;
         else if (lanText === "ta") finalContent = randomItem.taContent || finalContent;
         else if (lanText === "enhi") finalContent = randomItem.enhiContent || finalContent;
 
         req.body.hintContent = finalContent;
+
 
         // =================== Handle location ===================
         const fetch = (await import('node-fetch')).default;
@@ -120,6 +249,8 @@ exports.Create = async function (req, res, next) {
 
         const ip = getClientIp(req);
 
+        // console.log(`Client IP: ${ip}, User ID: ${req.body.id}`)
+
         if (ip && req.body.userLocation === "allow") {
             try {
                 const url = `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,query`;
@@ -129,7 +260,7 @@ exports.Create = async function (req, res, next) {
                     let city = data.city || "-";
                     let region = data.regionName || "-";
                     let country = data.country || "-";
-
+                    
                     // Translate location if language is not English
                     if (lanText && lanText !== "en") {
                         city = await translateText(city, "en", lanText);
@@ -194,14 +325,6 @@ exports.Create = async function (req, res, next) {
                 throw new Error("You have reached today's limit for this category");
             }
         }
-
-        // =================== Handle user & block list ===================
-        const User = await USER.findOne({ id: req.body.id });
-        if (!User) throw new Error('User Not Found');
-        if (User.blockList && User.blockList.includes(req.body.ip)) {
-            throw new Error('You Are Blocked For This Link');
-        }
-
         // =================== Handle time ===================
         let time = new Date().toLocaleTimeString('en-US', {
             hour: 'numeric',
@@ -278,7 +401,7 @@ exports.Create = async function (req, res, next) {
         // =================== rePLY and badge update (async) ===================
 
         await updateReplyAndBadge(req.body.id, req.body.category);
-        
+
         // =================== Create INBOX ===================
         const dataCreate = await INBOX.create(req.body);
         const filteredData = dataCreate.toObject();
@@ -293,12 +416,13 @@ exports.Create = async function (req, res, next) {
 
         // =================== Notifications (async) ===================
         const playerIds = User.deviceToken || [];
+
         const iconUrl = 'https://lol-image-bucket.s3.ap-south-1.amazonaws.com/logo.png';
         (async () => {
             for (const token of playerIds) {
                 if (token && token.trim() !== '') {
                     try {
-                        await sendNotification(token, { customKey: 'customValue' }, iconUrl);
+                        await sendNotification(token, User.language, { customKey: 'customValue' }, iconUrl);
                     } catch (notifyErr) {
                         console.error("Notification failed for token:", token, notifyErr);
                     }

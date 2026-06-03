@@ -6,7 +6,6 @@ const Schema = mongoose.Schema;
 const ques2ContentData = new Schema({
     Content: String,
     hiContent: String,
-    esContent: String,
     taContent: String,
     mrContent: String,
     enhiContent: String

@@ -38,7 +38,6 @@ exports.Create = async function (req, res, next) {
     try {
         if (req.body.title) {
             req.body.hiTitle = await translateText(req.body.title, "en", "hi");
-            req.body.esTitle = await translateText(req.body.title, "en", "es");
             req.body.taTitle = await translateText(req.body.title, "en", "ta");
             req.body.mrTitle = await translateText(req.body.title, "en", "mr");
             req.body.enhiTitle = await convertToHinglish(req.body.hiTitle);
@@ -109,7 +108,6 @@ exports.Update = async function (req, res, next) {
     try {
         if (req.body.title) {
             req.body.hiTitle = await translateText(req.body.title, "en", "hi");
-            req.body.esTitle = await translateText(req.body.title, "en", "es");
             req.body.taTitle = await translateText(req.body.title, "en", "ta");
             req.body.mrTitle = await translateText(req.body.title, "en", "mr");
             req.body.enhiTitle = await convertToHinglish(req.body.hiTitle);

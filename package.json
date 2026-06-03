@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node --max-old-space-size=2048 ./bin/www"
+    "start": "nodemon --max-old-space-size=2048 ./bin/www"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.812.0",

@@ -75,3 +75,42 @@ exports.Read = async function (req, res) {
         });
     }
 };
+
+
+exports.Delete = async function (req, res) {
+    try {
+        const { id, category, words } = req.body;
+
+        if (!category || !words) {
+            throw new Error("category and words are required");
+        }
+
+        const data = await WORD.findOne({ id, category });
+
+        if (!data) {
+            throw new Error("Data not found");
+        }
+
+        // 🔍 Check if word exists
+        if (!data.words.includes(words)) {
+            throw new Error("Word not found in array");
+        }
+
+        // 🗑️ Remove word
+        data.words = data.words.filter(w => w !== words);
+
+        await data.save();
+
+        return res.status(200).json({
+            status: 1,
+            message: 'Word removed successfully',
+            data: data.words
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message
+        });
+    }
+};

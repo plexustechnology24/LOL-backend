@@ -5,5 +5,8 @@ const webControllers = require('../controllers/web')
 
 router.post('/view/count', webControllers.Create);
 
+router.post('/content', webControllers.WebCardContent);
+
+
 
 module.exports = router;

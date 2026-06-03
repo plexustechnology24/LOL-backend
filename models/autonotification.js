@@ -5,9 +5,15 @@ const Schema = mongoose.Schema;
 
 const autoNotificationData = new Schema({
     Title: String,
+    hiTitle: String,
+    enhiTitle: String,
+    mrTitle: String,
+    taTitle: String,
     Description: String,
     hiDescription: String,
-    esDescription: String
+    enhiDescription: String,
+    mrDescription: String,
+    taDescription: String
 },
     {
         versionKey: false,

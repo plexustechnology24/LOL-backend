@@ -33,7 +33,6 @@ const heavenHellRouter = require('./routes/heavenHell');
 const comingSoonRouter = require('./routes/comingSoon');
 const collabRouter = require('./routes/collab');
 const tempRouter = require('./routes/temp');
-const messageRouter = require('./routes/message');
 const webRouter = require('./routes/web');
 
 const app = express();
@@ -136,7 +135,6 @@ app.use('/api/heaven-hell', heavenHellRouter);
 app.use('/api/coming-soon', comingSoonRouter);
 app.use('/api/collab', collabRouter);
 app.use('/api/temp', tempRouter);
-app.use('/api/message', messageRouter);
 app.use('/api/web', webRouter);
 
 app.get("/", (req, res) => {

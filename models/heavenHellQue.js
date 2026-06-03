@@ -6,7 +6,6 @@ const Schema = mongoose.Schema;
 const heavenHellContentData = new Schema({
     Content: String,
     hiContent: String,
-    esContent: String,
     taContent: String,
     mrContent: String,
     enhiContent: String

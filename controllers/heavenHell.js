@@ -150,10 +150,8 @@ exports.ContentCreate = async function (req, res, next) {
     try {
         if (req.body.Content) {
             req.body.hiContent = await translateText(req.body.Content, "en", "hi");
-            req.body.esContent = await translateText(req.body.Content, "en", "es");
             req.body.taContent = await translateText(req.body.Content, "en", "ta");
             req.body.mrContent = await translateText(req.body.Content, "en", "mr");
-            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
 
         const datacreate = await CONTENT.create(req.body);
@@ -210,10 +208,8 @@ exports.ContentUpdate = async function (req, res, next) {
 
         if (req.body.Content) {
             req.body.hiContent = await translateText(req.body.Content, "en", "hi");
-            req.body.esContent = await translateText(req.body.Content, "en", "es");
             req.body.taContent = await translateText(req.body.Content, "en", "ta");
             req.body.mrContent = await translateText(req.body.Content, "en", "mr");
-            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
 
         const updatedCard = await CONTENT.findByIdAndUpdate(

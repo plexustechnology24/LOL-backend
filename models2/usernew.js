@@ -51,12 +51,6 @@ const newuserData = new Schema({
         default: 'false',
         required: true
     },
-    autoMessage: {
-        type: Boolean,
-        enum: [true, false],
-        default: true,
-        required: true
-    },
     expiryTime: Number,
     timeperiod: Number,
     language: {
@@ -87,12 +81,12 @@ const newuserData = new Schema({
                 hotnessId: Number,  //6
                 subCategory: String,  //7
                 heavenhellque: [String],  //11
-                avatarImg: String,  //11
             },
             lan: String
         }
     ],
     annoyallcardtitle: [String],
+    heavenhellque: [String],
     blockList: [{
         type: String
     }],

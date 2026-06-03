@@ -105,7 +105,6 @@ async function createInboxEntriesForAllUsers() {
                 hint: (function () {
                     switch (user.language) {
                         case 'hi': return selectedData.hintHi;
-                        case 'es': return selectedData.hintEs;
                         case 'ur': return selectedData.hintUr;
                         case 'fr': return selectedData.hintFr;
                         case 'pt': return selectedData.hintPt;
@@ -117,7 +116,6 @@ async function createInboxEntriesForAllUsers() {
                 nickname: (function () {
                     switch (user.language) {
                         case 'hi': return selectedData.nicknameHi;
-                        case 'es': return selectedData.nicknameEs;
                         case 'ur': return selectedData.nicknameUr;
                         case 'fr': return selectedData.nicknameFr;
                         case 'pt': return selectedData.nicknamePt;
@@ -129,7 +127,6 @@ async function createInboxEntriesForAllUsers() {
                 selectedCardTitle: (function () {
                     switch (user.language) {
                         case 'hi': return selectedData.selectedCardTitleHi;
-                        case 'es': return selectedData.selectedCardTitleEs;
                         case 'ur': return selectedData.selectedCardTitleUr;
                         case 'fr': return selectedData.selectedCardTitleFr;
                         case 'pt': return selectedData.selectedCardTitlePt;

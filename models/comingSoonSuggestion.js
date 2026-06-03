@@ -4,6 +4,7 @@ const { connection1 } = require('../db');
 const Schema = mongoose.Schema;
 
 const comingSoonSuggestionData = new Schema({
+    id: String,
     suggestions: String,
 },
     {

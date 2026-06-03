@@ -29,6 +29,7 @@ const FRIENDCONTENT = require('../models/friendContent');
 const ROAST = require('../models/roastContent');
 const BLUFFCONTENT = require('../models/bluffContent');
 const HELLHEAVENCONTENT = require('../models/heavenHellContent');
+const HELLHEAVENQUE = require('../models/heavenHellQue');
 const COMINGSOONSUGGESTION = require('../models/comingSoonSuggestion');
 
 
@@ -438,6 +439,9 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         break;
       case '21':
         Model = COMINGSOONSUGGESTION;
+        break;
+      case '22':
+        Model = HELLHEAVENQUE;
         break;
       default:
         throw new Error('Invalid TypeId');

@@ -70,10 +70,8 @@ exports.ContentCreate = async function (req, res, next) {
 
         if (Content) {
             req.body.hiContent = await translateText(Content, "en", "hi");
-            req.body.esContent = await translateText(Content, "en", "es");
             req.body.taContent = await translateText(Content, "en", "ta");
             req.body.mrContent = await translateText(Content, "en", "mr");
-            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
 
         const datacreate = await SelectedModel.create(req.body);
@@ -147,10 +145,8 @@ exports.ContentUpdate = async function (req, res, next) {
 
         if (Content) {
             req.body.hiContent = await translateText(Content, "en", "hi");
-            req.body.esContent = await translateText(Content, "en", "es");
             req.body.taContent = await translateText(Content, "en", "ta");
             req.body.mrContent = await translateText(Content, "en", "mr");
-            req.body.enhiContent = await convertToHinglish(req.body.hiContent);
         }
         
         const updatedCard = await SelectedModel.findByIdAndUpdate(

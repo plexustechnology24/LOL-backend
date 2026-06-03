@@ -52,9 +52,9 @@ async function deleteFromS3(fileUrl, bucketName) {
             console.error('Invalid S3 URL format');
             return false;
         }
-        
+
         const key = urlParts[1];
-        
+
         // Don't delete default avatar
         if (key.includes('AvatarDefault')) {
             return false;
@@ -98,6 +98,56 @@ async function uploadToS3(file, bucketName, folderPath = '') {
     }
 }
 
+const generateThumbnailFromUrl = async (videoUrl) => {
+    return new Promise((resolve, reject) => {
+        try {
+            const fileName = `thumb-${Date.now()}.jpg`;
+            // ✅ Use os.tmpdir() instead of __dirname-relative path
+            const outputPath = path.join(os.tmpdir(), fileName);
+
+            // No need to check/create the directory — os.tmpdir() always exists
+
+            console.log("🎥 Generating thumbnail from:", videoUrl);
+
+            ffmpeg(videoUrl)
+                .on('end', async () => {
+                    try {
+                        console.log("✅ Thumbnail generated:", outputPath);
+
+                        const fileBuffer = fs.readFileSync(outputPath);
+                        const pseudoFile = {
+                            buffer: fileBuffer,
+                            mimetype: 'image/jpeg',
+                            originalname: fileName
+                        };
+
+                        // ✅ Pass a proper file object, not a file path string
+                        const upload = await uploadToS3(pseudoFile, process.env.AWS_BUCKET_NAME, 'images/thumbnails');
+
+                        fs.unlinkSync(outputPath);
+                        resolve(upload.url);
+
+                    } catch (err) {
+                        reject(err);
+                    }
+                })
+                .on('error', (err) => {
+                    console.error("❌ FFmpeg error:", err.message);
+                    reject(err);
+                })
+                .screenshots({
+                    count: 1,
+                    timemarks: ['1'],
+                    filename: fileName,
+                    folder: os.tmpdir(), // ✅ Write to system temp dir
+                });
+
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
 // Function to capture frame from video
 async function captureVideoFrame(videoBuffer, originalFilename) {
     return new Promise((resolve, reject) => {
@@ -121,11 +171,11 @@ async function captureVideoFrame(videoBuffer, originalFilename) {
                     try {
                         // Read the captured frame
                         const frameBuffer = fs.readFileSync(tempImagePath);
-                        
+
                         // Clean up temporary files
                         fs.unlinkSync(tempVideoPath);
                         fs.unlinkSync(tempImagePath);
-                        
+
                         resolve({
                             buffer: frameBuffer,
                             mimetype: 'image/jpeg',
@@ -165,7 +215,7 @@ async function uploadFileWithThumbnail(file, bucketName, folderPath = '') {
         if (isVideo) {
             try {
                 const frameData = await captureVideoFrame(file.buffer, file.originalname);
-                
+
                 // Create a file-like object for the thumbnail
                 const thumbnailFile = {
                     buffer: frameData.buffer,
@@ -221,7 +271,6 @@ async function uploadMediaWithFrameCapture(file, folderPath) {
 // Routes
 router.get('/callback', upload.none(), userControllers.CallBack);
 router.post('/idcheck', upload.none(), validateRequestBody, userControllers.IdExist);
-router.post('/auto-message', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.AutoMessage); 
 router.post('/pause-link2', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.UpdateLink2);    //old
 router.post('/pauselink', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PauseLink);    //new
 router.post('/que/add', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.StaticQue);
@@ -233,8 +282,6 @@ router.post('/catgory/found', upload.none(), validateRequestBody, userController
 router.post('/catgory/webinstall', upload.none(), validateRequestBody, userControllers.WebInstall);
 router.post('/web/cardpreview', upload.none(), validateRequestBody, userControllers.WebCardPreview);
 router.post('/web/emotion/cardpreview', upload.none(), validateRequestBody, userControllers.WebEmotionCardPreview);
-router.post('/web/emotion/content', upload.none(), validateRequestBody, userControllers.WebEmotionCardContent);
-router.post('/web/challenge/content', upload.none(), validateRequestBody, userControllers.WebChallengeCardContent);
 router.post('/web/hotness/cardpreview', upload.none(), validateRequestBody, userControllers.WebHotnessCardPreview);
 router.post('/web/friend/cardpreview', upload.none(), validateRequestBody, userControllers.WebFriendCardPreview);
 router.post('/web/bluff/cardpreview', upload.none(), validateRequestBody, userControllers.WebBluffCardPreview);
@@ -252,6 +299,8 @@ router.post('/user/language', upload.none(), validateRequestBody, verifyToken, v
 +router.post('/user/word', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Create);
 
 +router.post('/user/word/get', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Read);
+
++router.post('/user/word/delete', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Delete);
 
 
 +router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
@@ -287,6 +336,7 @@ router.post('/challenge/share', upload.none(), validateRequestBody, verifyToken,
 // ======================================= 11 question ==============================================
 router.post('/heavenhell/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHell);
 router.post('/heavenhell/ques', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHellQues);
+router.post('/heavenhell/ques/add', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHellAddQues);
 
 
 
@@ -317,21 +367,21 @@ router.post('/update/profile', upload.single("avatar"), validateRequestBody, ver
             // Get user's current avatar before updating
             const { id } = req.body;
             const currentUser = await NUSER.findOne({ id: id });
-            
+
             if (currentUser && currentUser.avatar) {
                 // Delete old avatar from S3
                 const bucketName = process.env.AWS_BUCKET_NAME;
                 await deleteFromS3(currentUser.avatar, bucketName);
             }
-            
+
             // Upload new avatar to S3
             const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
-            
+
             // Store filename and URL in the request object for the controller
             req.file.filename = filename;
             req.file.s3Url = url;
         }
-        
+
         userControllers.ProfileUpdate(req, res, next);
     } catch (error) {
         console.error('Error during profile update:', error);
@@ -348,21 +398,21 @@ router.post('/update/allprofile', upload.single("avatar"), validateRequestBody, 
             // Get user's current avatar before updating
             const { id } = req.body;
             const currentUser = await NUSER.findOne({ id: id });
-            
+
             if (currentUser && currentUser.avatar) {
                 // Delete old avatar from S3
                 const bucketName = process.env.AWS_BUCKET_NAME;
                 await deleteFromS3(currentUser.avatar, bucketName);
             }
-            
+
             // Upload new avatar to S3
             const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
-            
+
             // Store filename and URL in the request object for the controller
             req.file.filename = filename;
             req.file.s3Url = url;
         }
-        
+
         userControllers.ProfileUpdateNew(req, res, next);
     } catch (error) {
         console.error('Error during profile update:', error);
@@ -375,39 +425,63 @@ router.post('/update/allprofile', upload.single("avatar"), validateRequestBody, 
 
 
 // 1 and 2 ques preview api
-router.post('/que/share', upload.single("image"), validateRequestBody, verifyToken, verifyUserId, async (req, res, next) => {
-    try {
-        if (req.file) {
-            // Determine folder based on file type
-            let folderPath;
-            if (req.file.mimetype.startsWith('video/')) {
-                folderPath = 'videos/picroast';
-            } else {
-                folderPath = 'images/picroast';
+router.post(
+    '/que/share',
+    upload.single("image"),
+    validateRequestBody,
+    verifyToken,
+    verifyUserId,
+    async (req, res, next) => {
+        try {
+            const mediaUrl = req.body.mediaUrl; // 🔥 NEW PARAM
+
+            if (req.file) {
+                // 📁 FILE UPLOAD FLOW
+                let folderPath;
+
+                if (req.file.mimetype.startsWith('video/')) {
+                    folderPath = 'videos/picroast';
+                } else {
+                    folderPath = 'images/picroast';
+                }
+
+                const uploadResults = await uploadMediaWithFrameCapture(req.file, folderPath);
+
+                req.file.filename = uploadResults.original.filename;
+                req.file.s3Url = uploadResults.original.url;
+
+                if (uploadResults.thumbnail) {
+                    req.file.thumbnailFilename = uploadResults.thumbnail.filename;
+                    req.file.thumbnailUrl = uploadResults.thumbnail.url;
+                }
+
+            } else if (mediaUrl) {
+                // 🌐 URL FLOW
+                req.file = {};
+
+                req.file.s3Url = mediaUrl;
+                const isVideoUrl = (url) => {
+                    return /\.(mp4|mov|avi|webm|mkv)$/i.test(url);
+                };
+
+                // 🎥 If video URL → generate thumbnail
+                if (isVideoUrl(mediaUrl)) {
+                    const thumbnail = await generateThumbnailFromUrl(mediaUrl);
+
+                    req.file.thumbnailUrl = thumbnail; // store thumbnail URL
+                }
             }
 
-            // Upload with video frame capture
-            const uploadResults = await uploadMediaWithFrameCapture(req.file, folderPath);
-            
-            // Store original file info
-            req.file.filename = uploadResults.original.filename;
-            req.file.s3Url = uploadResults.original.url;
-            
-            // Store thumbnail info if available
-            if (uploadResults.thumbnail) {
-                req.file.thumbnailFilename = uploadResults.thumbnail.filename;
-                req.file.thumbnailUrl = uploadResults.thumbnail.url;  
-            }
+            userControllers.StaticQueUpdate(req, res, next);
+
+        } catch (error) {
+            console.error('Error during media upload:', error);
+            res.status(500).json({
+                error: 'Media upload failed',
+                details: error.message
+            });
         }
-
-        userControllers.StaticQueUpdate(req, res, next);
-    } catch (error) {
-        console.error('Error during media upload:', error);
-        res.status(500).json({
-            error: 'Media upload failed',
-            details: error.message
-        });
     }
-});
+);
 
 module.exports = router;
