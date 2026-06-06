@@ -8,12 +8,12 @@ const autoNotificationData = new Schema({
     hiTitle: String,
     enhiTitle: String,
     mrTitle: String,
-    taTitle: String,
+    // taTitle: String,
     Description: String,
     hiDescription: String,
     enhiDescription: String,
     mrDescription: String,
-    taDescription: String
+    // taDescription: String
 },
     {
         versionKey: false,

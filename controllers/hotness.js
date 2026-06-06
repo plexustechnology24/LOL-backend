@@ -41,7 +41,7 @@ exports.HotnessCategoryCreate = async (req, res) => {
     try {
         const { categoryTitle, subCatergoryTitle, categoryImage2, cardImage2 } = req.body;
         const hicategoryTitle = await translateText(req.body.categoryTitle, "en", "hi");
-        const tacategoryTitle = await translateText(req.body.categoryTitle, "en", "ta");
+        // const tacategoryTitle = await translateText(req.body.categoryTitle, "en", "ta");
         const mrcategoryTitle = await translateText(req.body.categoryTitle, "en", "mr");
         const enhicategoryTitle = hicategoryTitle
             ? await convertToHinglish(hicategoryTitle)
@@ -49,7 +49,7 @@ exports.HotnessCategoryCreate = async (req, res) => {
 
 
         const hisubCatergoryTitle = await translateText(req.body.subCatergoryTitle, "en", "hi");
-        const tasubCatergoryTitle = await translateText(req.body.subCatergoryTitle, "en", "ta");
+        // const tasubCatergoryTitle = await translateText(req.body.subCatergoryTitle, "en", "ta");
         const mrsubCatergoryTitle = await translateText(req.body.subCatergoryTitle, "en", "mr");
         const enhisubCatergoryTitle = hisubCatergoryTitle
             ? await convertToHinglish(hisubCatergoryTitle)
@@ -81,11 +81,11 @@ exports.HotnessCategoryCreate = async (req, res) => {
             subCatergoryImage,
             cardImage,
             hicategoryTitle,
-            tacategoryTitle,
+            // tacategoryTitle,
             mrcategoryTitle,
             enhicategoryTitle,
             hisubCatergoryTitle,
-            tasubCatergoryTitle,
+            // tasubCatergoryTitle,
             mrsubCatergoryTitle,
             enhisubCatergoryTitle
         });
@@ -212,11 +212,11 @@ exports.HotnessCategoryUpdate = async function (req, res, next) {
 
       const [
         hicategoryTitle,
-        tacategoryTitle,
+        // tacategoryTitle,
         mrcategoryTitle
       ] = await Promise.all([
         translateText(req.body.categoryTitle, "en", "hi"),
-        translateText(req.body.categoryTitle, "en", "ta"),
+        // translateText(req.body.categoryTitle, "en", "ta"),
         translateText(req.body.categoryTitle, "en", "mr")
       ]);
 
@@ -228,7 +228,7 @@ exports.HotnessCategoryUpdate = async function (req, res, next) {
         categoryTitle: req.body.categoryTitle,
         categoryImage: req.body.categoryImage,
         hicategoryTitle: hicategoryTitle || "",
-        tacategoryTitle: tacategoryTitle || "",
+        // tacategoryTitle: tacategoryTitle || "",
         mrcategoryTitle: mrcategoryTitle || "",
         enhicategoryTitle
       };
@@ -252,11 +252,11 @@ exports.HotnessCategoryUpdate = async function (req, res, next) {
 
       const [
         hisubCatergoryTitle,
-        tasubCatergoryTitle,
+        // tasubCatergoryTitle,
         mrsubCatergoryTitle
       ] = await Promise.all([
         translateText(req.body.subCatergoryTitle, "en", "hi"),
-        translateText(req.body.subCatergoryTitle, "en", "ta"),
+        // translateText(req.body.subCatergoryTitle, "en", "ta"),
         translateText(req.body.subCatergoryTitle, "en", "mr")
       ]);
 
@@ -265,7 +265,7 @@ exports.HotnessCategoryUpdate = async function (req, res, next) {
         : "";
 
       req.body.hisubCatergoryTitle = hisubCatergoryTitle || "";
-      req.body.tasubCatergoryTitle = tasubCatergoryTitle || "";
+    //   req.body.tasubCatergoryTitle = tasubCatergoryTitle || "";
       req.body.mrsubCatergoryTitle = mrsubCatergoryTitle || "";
       req.body.enhisubCatergoryTitle = enhisubCatergoryTitle;
 

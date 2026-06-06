@@ -88,7 +88,8 @@ const notificationContent = {
 };
 
 const getRandomContentByLang = (lang) => {
-    const supportedLangs = ['en', 'hi', 'mr', 'ta', 'enhi'];
+    // const supportedLangs = ['en', 'hi', 'mr', 'ta', 'enhi'];
+    const supportedLangs = ['en', 'hi', 'mr', 'enhi'];
 
     let finalLang;
 
@@ -232,7 +233,7 @@ exports.Create = async function (req, res, next) {
 
         if (lanText === "hi") finalContent = randomItem.hiContent || finalContent;
         else if (lanText === "mr") finalContent = randomItem.mrContent || finalContent;
-        else if (lanText === "ta") finalContent = randomItem.taContent || finalContent;
+        // else if (lanText === "ta") finalContent = randomItem.taContent || finalContent;
         else if (lanText === "enhi") finalContent = randomItem.enhiContent || finalContent;
 
         req.body.hintContent = finalContent;

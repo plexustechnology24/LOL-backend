@@ -315,7 +315,7 @@ exports.IdExist = async function (req, res, next) {
                 const langMap = {
                     hi: "hiTitle",
                     es: "esTitle",
-                    ta: "taTitle",
+                    // ta: "taTitle",
                     mr: "mrTitle",
                     enhi: "enhiTitle"
                 };
@@ -347,7 +347,7 @@ exports.IdExist = async function (req, res, next) {
                 const langMap = {
                     hi: "hiTitle",
                     es: "esTitle",
-                    ta: "taTitle",
+                    // ta: "taTitle",
                     mr: "mrTitle",
                     enhi: "enhiTitle"
                 };
@@ -1414,7 +1414,7 @@ exports.HotnessCategory = async function (req, res) {
 
             const langMap = {
                 hi: { cat: "hicategoryTitle", sub: "hisubCatergoryTitle" },
-                ta: { cat: "tacategoryTitle", sub: "tasubCatergoryTitle" },
+                // ta: { cat: "tacategoryTitle", sub: "tasubCatergoryTitle" },
                 mr: { cat: "mrcategoryTitle", sub: "mrsubCatergoryTitle" },
                 enhi: { cat: "enhicategoryTitle", sub: "enhisubCatergoryTitle" }
             };
@@ -1929,7 +1929,7 @@ exports.HeavenHellQues = async function (req, res, next) {
         const adminQues = ques.map(q => {
             const langMap = {
                 hi: q.hiContent,
-                ta: q.taContent,
+                // ta: q.taContent,
                 mr: q.mrContent,
                 enhi: q.enhiContent
             };
@@ -2618,7 +2618,7 @@ exports.WebRoastHostId = async (req, res) => {
             // default English
             const langMap = {
                 hi: "hisubCatergoryTitle",
-                ta: "tasubCatergoryTitle",
+                // ta: "tasubCatergoryTitle",
                 mr: "mrsubCatergoryTitle",
                 enhi: "enhisubCatergoryTitle"
             };
@@ -2901,7 +2901,7 @@ exports.Verify = async function (req, res, next) {
             const langMap = {
                 hi: "hiTitle",
                 es: "esTitle",
-                ta: "taTitle",
+                // ta: "taTitle",
                 mr: "mrTitle",
                 enhi: "enhiTitle"
             };

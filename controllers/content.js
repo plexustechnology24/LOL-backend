@@ -70,7 +70,7 @@ exports.ContentCreate = async function (req, res, next) {
 
         if (Content) {
             req.body.hiContent = await translateText(Content, "en", "hi");
-            req.body.taContent = await translateText(Content, "en", "ta");
+            // req.body.taContent = await translateText(Content, "en", "ta");
             req.body.mrContent = await translateText(Content, "en", "mr");
         }
 
@@ -145,7 +145,7 @@ exports.ContentUpdate = async function (req, res, next) {
 
         if (Content) {
             req.body.hiContent = await translateText(Content, "en", "hi");
-            req.body.taContent = await translateText(Content, "en", "ta");
+            // req.body.taContent = await translateText(Content, "en", "ta");
             req.body.mrContent = await translateText(Content, "en", "mr");
         }
         

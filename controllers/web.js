@@ -114,7 +114,7 @@ exports.WebCardContent = async (req, res, next) => {
         // 🌐 Language mapping
         const contentMap = {
             hi: "hiContent",
-            ta: "taContent",
+            // ta: "taContent",
             mr: "mrContent",
             enhi: "enhiContent"
         };

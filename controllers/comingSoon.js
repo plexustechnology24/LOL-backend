@@ -12,13 +12,13 @@ exports.Create = async function (req, res, next) {
 
         if (Title) {
             req.body.hiTitle = await translateText(Title, "en", "hi");
-            req.body.taTitle = await translateText(Title, "en", "ta");
+            // req.body.taTitle = await translateText(Title, "en", "ta");
             req.body.mrTitle = await translateText(Title, "en", "mr");
         }
 
         if (Description) {
             req.body.hiDescription = await translateText(Description, "en", "hi");
-            req.body.taDescription = await translateText(Description, "en", "ta");
+            // req.body.taDescription = await translateText(Description, "en", "ta");
             req.body.mrDescription = await translateText(Description, "en", "mr");
         }
 
@@ -97,13 +97,13 @@ exports.Update = async function (req, res, next) {
 
         if (Title) {
             req.body.hiTitle = await translateText(Title, "en", "hi");
-            req.body.taTitle = await translateText(Title, "en", "ta");
+            // req.body.taTitle = await translateText(Title, "en", "ta");
             req.body.mrTitle = await translateText(Title, "en", "mr");
         }
 
         if (Description) {
             req.body.hiDescription = await translateText(Description, "en", "hi");
-            req.body.taDescription = await translateText(Description, "en", "ta");
+            // req.body.taDescription = await translateText(Description, "en", "ta");
             req.body.mrDescription = await translateText(Description, "en", "mr");
         }
 
@@ -175,10 +175,10 @@ exports.Find = async function (req, res, next) {
                 descriptionField = 'mrDescription';
                 break;
 
-            case 'ta':
-                titleField = 'taTitle';
-                descriptionField = 'taDescription';
-                break;
+            // case 'ta':
+            //     titleField = 'taTitle';
+            //     descriptionField = 'taDescription';
+            //     break;
 
             case 'enhi':
                 titleField = 'enhiTitle';
