@@ -16,12 +16,12 @@ exports.Create = async function (req, res, next) {
         if (req.body.Description) {
             req.body.hiDescription = await translateText(req.body.Description, "en", "hi");
             req.body.mrDescription = await translateText(req.body.Description, "en", "mr");
-            // req.body.taDescription = await translateText(req.body.Description, "en", "ta");
+            req.body.taDescription = await translateText(req.body.Description, "en", "ta");
         }
         if (req.body.Title) {
             req.body.hiTitle = await translateText(req.body.Title, "en", "hi");
             req.body.mrTitle = await translateText(req.body.Title, "en", "mr");
-            // req.body.taTitle = await translateText(req.body.Title, "en", "ta");
+            req.body.taTitle = await translateText(req.body.Title, "en", "ta");
         }
         
 
@@ -114,12 +114,12 @@ exports.Update = async function (req, res, next) {
         if (req.body.Description) {
             req.body.hiDescription = await translateText(req.body.Description, "en", "hi");
             req.body.mrDescription = await translateText(req.body.Description, "en", "mr");
-            // req.body.taDescription = await translateText(req.body.Description, "en", "ta");
+            req.body.taDescription = await translateText(req.body.Description, "en", "ta");
         }
         if (req.body.Title) {
             req.body.hiTitle = await translateText(req.body.Title, "en", "hi");
             req.body.mrTitle = await translateText(req.body.Title, "en", "mr");
-            // req.body.taTitle = await translateText(req.body.Title, "en", "ta");
+            req.body.taTitle = await translateText(req.body.Title, "en", "ta");
         }
 
         const updatedAd = await NOTIFICATION.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -219,7 +219,7 @@ const sendPushNotificationLanguageWise = async (pushData) => {
     };
 
     // const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr', 'ta'];
-    const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr'];
+    const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr', 'ta'];
     const languageGroups = {};
 
     for (const user of users) {
@@ -247,7 +247,7 @@ const sendPushNotificationLanguageWise = async (pushData) => {
         hi: pushData.hiTitle,
         enhi: pushData.enhiTitle || pushData.Title,
         mr: pushData.mrTitle || pushData.Title,
-        // ta: pushData.taTitle || pushData.Title
+        ta: pushData.taTitle || pushData.Title
     };
 
     const messages = {
@@ -255,7 +255,7 @@ const sendPushNotificationLanguageWise = async (pushData) => {
         hi: pushData.hiDescription,
         enhi: pushData.enhiDescription || pushData.Description,
         mr: pushData.mrDescription || pushData.Description,
-        // ta: pushData.taDescription || pushData.Description
+        ta: pushData.taDescription || pushData.Description
     };
 
     // 🔁 Send notifications

@@ -7,7 +7,7 @@ const ques9ContentData = new Schema({
     Category: String,
     Content: String,
     hiContent: String,
-    // taContent: String,
+    taContent: String,
     mrContent: String,
     enhiContent: String
 },

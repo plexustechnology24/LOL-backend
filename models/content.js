@@ -6,7 +6,7 @@ const Schema = mongoose.Schema;
 const hintContentData = new Schema({
     Content: String,
     hiContent: String,
-    // taContent: String,
+    taContent: String,
     mrContent: String,
     enhiContent: String
 },

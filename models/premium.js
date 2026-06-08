@@ -7,7 +7,7 @@ const premiumData = new Schema({
     title: String,
     hiTitle: String,
     esTitle: String,
-    // taTitle: String,
+    taTitle: String,
     mrTitle: String,
     enhiTitle: String,
     androidId: String,

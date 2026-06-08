@@ -31,6 +31,7 @@ const BLUFFCONTENT = require('../models/bluffContent');
 const HELLHEAVENCONTENT = require('../models/heavenHellContent');
 const HELLHEAVENQUE = require('../models/heavenHellQue');
 const COMINGSOONSUGGESTION = require('../models/comingSoonSuggestion');
+const TBH = require('../models/tbh');
 
 
 
@@ -442,6 +443,9 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         break;
       case '22':
         Model = HELLHEAVENQUE;
+        break;
+      case '23':
+        Model = TBH;
         break;
       default:
         throw new Error('Invalid TypeId');

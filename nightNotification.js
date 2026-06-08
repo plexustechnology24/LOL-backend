@@ -20,12 +20,12 @@ const autoNotificationSchema = new mongoose.Schema({
     hiTitle:         String,
     enhiTitle:       String,
     mrTitle:         String,
-    // taTitle:         String,
+    taTitle:         String,
     Description:     String,
     hiDescription:   String,
     enhiDescription: String,
     mrDescription:   String,
-    // taDescription:   String,
+    taDescription:   String,
 }, { versionKey: false, timestamps: true });
 
 const newuserSchema = new mongoose.Schema({
@@ -51,7 +51,7 @@ const client = new OneSignal.Client(
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr', 'ta'];
-const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr'];
+const SUPPORTED_LANGUAGES = ['en', 'hi', 'enhi', 'mr', 'ta'];
 
 const isValidUUID = (id) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -112,7 +112,7 @@ const sendPushNotificationLanguageWise = async (pushData) => {
         hi:   pushData.hiTitle        || pushData.Title,
         enhi: pushData.enhiTitle      || pushData.Title,
         mr:   pushData.mrTitle        || pushData.Title,
-        // ta:   pushData.taTitle        || pushData.Title,
+        ta:   pushData.taTitle        || pushData.Title,
     };
 
     const messages = {
@@ -120,7 +120,7 @@ const sendPushNotificationLanguageWise = async (pushData) => {
         hi:   pushData.hiDescription   || pushData.Description,
         enhi: pushData.enhiDescription || pushData.Description,
         mr:   pushData.mrDescription   || pushData.Description,
-        // ta:   pushData.taDescription   || pushData.Description,
+        ta:   pushData.taDescription   || pushData.Description,
     };
 
     const TEST_MODE = false; // Set to true to send only to test player IDs (for development/testing)

@@ -7,7 +7,7 @@ const hotnessMainCategory = new Schema({
     categoryId: Number,
     categoryTitle: String,
     hicategoryTitle: String,
-    // tacategoryTitle: String,
+    tacategoryTitle: String,
     mrcategoryTitle: String,
     enhicategoryTitle: String,
     categoryImage: String,

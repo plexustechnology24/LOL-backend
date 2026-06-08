@@ -34,6 +34,7 @@ const comingSoonRouter = require('./routes/comingSoon');
 const collabRouter = require('./routes/collab');
 const tempRouter = require('./routes/temp');
 const webRouter = require('./routes/web');
+const tbhRouter = require('./routes/tbh');
 
 const app = express();
 
@@ -101,7 +102,7 @@ app.set('view engine', 'ejs');
 
 // Basic middleware
 app.use(logger('dev'));
-app.use(express.json({ limit: '50mb' }));  
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -136,7 +137,7 @@ app.use('/api/coming-soon', comingSoonRouter);
 app.use('/api/collab', collabRouter);
 app.use('/api/temp', tempRouter);
 app.use('/api/web', webRouter);
-
+app.use('/api/tbh', tbhRouter);
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });
@@ -171,7 +172,7 @@ app.use((req, res, next) => {
 });
 
 // Error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
   console.error(err);  // Log errors
@@ -184,6 +185,6 @@ process.on('SIGINT', async () => {
   console.log('MongoDB connection closed due to app termination');
   process.exit(0);
 });
- 
+
 
 module.exports = app;
