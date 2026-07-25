@@ -3,8 +3,7 @@ const { connection1 } = require('../db');
 
 const Schema = mongoose.Schema;
 
-const ques9ContentData = new Schema({
-    // Category: String,
+const ques13ContentData = new Schema({
     Content: String,
     hiContent: String,
     taContent: String,
@@ -16,4 +15,4 @@ const ques9ContentData = new Schema({
         timestamps: true
     });
 
-module.exports = connection1.models['ques9-content'] || connection1.model('ques9-content', ques9ContentData);
+module.exports = connection1.models['ques13-content'] || connection1.model('ques13-content', ques13ContentData);

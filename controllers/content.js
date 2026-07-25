@@ -8,6 +8,8 @@ const FRIEND = require('../models/friendContent');
 const ROAST = require('../models/roastContent');
 const BLUFF = require('../models/bluffContent');
 const HELLHEAVEN = require('../models/heavenHellContent');
+const REPUTATION = require('../models/reputationContent');
+const IMPRESSION = require('../models/impressionContent');
 const axios = require('axios');
 
 const { transliterate } = require("transliteration");
@@ -55,7 +57,9 @@ const MODEL_MAP = {
     friend: FRIEND,
     roast: ROAST,
     bluff: BLUFF,
-    hellheaven: HELLHEAVEN
+    hellheaven: HELLHEAVEN,
+    reputation: REPUTATION,
+    impression: IMPRESSION
 };
 
 exports.ContentCreate = async function (req, res, next) {

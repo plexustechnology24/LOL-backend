@@ -387,9 +387,11 @@ exports.Create = async function (req, res, next) {
             ...(req.body.roastContent && { roastContent: req.body.roastContent }),
             ...(req.body.roastEmoji && { roastEmoji: req.body.roastEmoji }),
             ...(req.body.roastVoice && { roastVoice: req.body.roastVoice }),
-            ...(req.body.bluffBg && { bluffBg: req.body.bluffBg }),
-            ...(req.body.bluffContent && { bluffContent: req.body.bluffContent }),
-            ...(req.body.bluffEmoji && { bluffEmoji: req.body.bluffEmoji }),
+            // ...(req.body.bluffBg && { bluffBg: req.body.bluffBg }),
+            // ...(req.body.bluffContent && { bluffContent: req.body.bluffContent }),
+            // ...(req.body.bluffEmoji && { bluffEmoji: req.body.bluffEmoji }),
+            ...(req.body.rumourContent && { rumourContent: req.body.rumourContent }),
+            ...(req.body.rumourEmoji && { rumourEmoji: req.body.rumourEmoji }),
             ...(req.body.challengeContent && { challengeContent: req.body.challengeContent }),
             ...(req.body.heavenHellQue && { heavenHellQue: JSON.parse(req.body.heavenHellQue) }),
             ...(req.body.heavenHellAns && { heavenHellAns: JSON.parse(req.body.heavenHellAns) }),
@@ -398,6 +400,16 @@ exports.Create = async function (req, res, next) {
             ...(req.body.heavenHellAvatarImg && { heavenHellAvatarImg: req.body.heavenHellAvatarImg }),
             ...(req.body.heavenHellBgMdlImg && { heavenHellBgMdlImg: req.body.heavenHellBgMdlImg }),
             ...(req.body.heavenHellType && { heavenHellType: req.body.heavenHellType }),
+            ...(req.body.reputationBg && { reputationBg: req.body.reputationBg }),
+            ...(req.body.reputationName && { reputationName: req.body.reputationName }),
+            ...(req.body.reputationEmoji && { reputationEmoji: req.body.reputationEmoji }),
+            ...(req.body.reputationHand && { reputationHand: req.body.reputationHand }),
+            ...(req.body.reputationComment && { reputationComment: req.body.reputationComment }),
+            ...(req.body.impressionBg && { impressionBg: req.body.impressionBg }),
+            ...(req.body.impressionName && { impressionName: req.body.impressionName }),
+            ...(req.body.impressionEmoji && { impressionEmoji: req.body.impressionEmoji }),
+            ...(req.body.impressionHand && { impressionHand: req.body.impressionHand }),
+            ...(req.body.impressionComment && { impressionComment: req.body.impressionComment }),
         };
         // =================== rePLY and badge update (async) ===================
 
@@ -619,11 +631,17 @@ exports.ReadPagination = async function (req, res, next) {
                     roastEmoji: item.answer?.roastEmoji ?? null
                 };
 
-            } else if (item.category === 'Qmx1ZmY=') {
+            // } else if (item.category === 'Qmx1ZmY=') {
+            //     answerData = {
+            //         bluffBg: item.answer?.bluffBg ?? null,
+            //         bluffContent: item.answer?.bluffContent ?? null,
+            //         bluffEmoji: item.answer?.bluffEmoji ?? null,
+            //     };
+
+            } else if (item.category === 'UnVtb3Vy') {
                 answerData = {
-                    bluffBg: item.answer?.bluffBg ?? null,
-                    bluffContent: item.answer?.bluffContent ?? null,
-                    bluffEmoji: item.answer?.bluffEmoji ?? null,
+                    rumourContent: item.answer?.rumourContent ?? null,
+                    rumourEmoji: item.answer?.rumourEmoji ?? null,
                 };
 
             } else if (item.category === 'Q2hhbGxlbmdl') {
@@ -640,6 +658,22 @@ exports.ReadPagination = async function (req, res, next) {
                     heavenHellAvatarImg: item.answer?.heavenHellAvatarImg,
                     heavenHellBgMdlImg: item.answer?.heavenHellBgMdlImg,
                     heavenHellType: item.answer?.heavenHellType,
+                };
+            } else if (item.category === 'UmVwdXRhdGlvbg==') {
+                answerData = {
+                    reputationBg: item.answer?.reputationBg ?? null,
+                    reputationName: item.answer?.reputationName ?? null,
+                    reputationEmoji: item.answer?.reputationEmoji ?? null,
+                    reputationHand: 'https://lol-image-bucket.s3.ap-south-1.amazonaws.com/images/question6/whitecard.png',
+                    reputationComment: item.answer?.reputationComment ?? null
+                };
+            } else if (item.category === 'SW1wcmVzc2lvbg==') {
+                answerData = {
+                    impressionBg: item.answer?.impressionBg ?? null,
+                    impressionName: item.answer?.impressionName ?? null,
+                    impressionEmoji: item.answer?.impressionEmoji ?? null,
+                    impressionHand: 'https://lol-image-bucket.s3.ap-south-1.amazonaws.com/images/question6/whitecard.png',
+                    impressionComment: item.answer?.impressionComment ?? null
                 };
             } else {
                 answerData = {

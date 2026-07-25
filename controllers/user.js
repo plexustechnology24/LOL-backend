@@ -1,15 +1,8 @@
 const NUSER = require('../models2/usernew');
 const NINBOX = require('../models2/inboxnew');
-const WEB = require('../models/web');
 const PREMIUM = require('../models/premium');
-const CARDBG = require('../models/cardBg');
 const DEVICE = require('../models/device');
 const TEMP = require('../models/temp');
-const ECARDBG = require('../models/emotionCardBg');
-const HCARDBG = require('../models/hotnessCardBg');
-const HHCARDBG = require('../models/heavenHellCardBg');
-const FCARDBG = require('../models/friendCardBg');
-const BCARDBG = require('../models/bluffCardBg');
 const HOTNESSCATEGORY = require('../models/hotnessCategory');
 const EMOJI = require('../models/emotionEmoji');
 const CONTENT = require('../models/emotionContent');
@@ -25,6 +18,7 @@ const { google } = require("googleapis");
 const axios = require("axios");
 
 const { updateShareAndBadge } = require('../helpers/analyticsHelper');
+const annoyQuestions = require('../constants/annoyQuestions');
 
 
 // APPLE CONFIG
@@ -199,9 +193,12 @@ const allPremiumQuestions = [
     "SG90bmVzcw==",
     "RnJpZW5k",
     "Um9hc3Q=",
-    "Qmx1ZmY=",
+    // "Qmx1ZmY=",
     "Q2hhbGxlbmdl",
     "SGVhdmVuSGVsbA==",
+    "UmVwdXRhdGlvbg==",
+    "SW1wcmVzc2lvbg==",
+    "UnVtb3Vy"
 ];
 function getRandomQuestions(array, count = 3) {
     const shuffled = array.sort(() => 0.5 - Math.random());
@@ -495,32 +492,6 @@ exports.ProfileUpdateNew = async function (req, res, next) {
     }
 };
 
-exports.UpdateLink2 = async function (req, res, next) {
-    try {
-
-        const { id, pauseLink } = req.body;
-
-        if (!id || !pauseLink) {
-            throw new Error("id and pauseLink are required");
-        }
-
-        const dataUpdate = await NUSER.findOneAndUpdate({ id: id }, req.body, { new: true });
-        if (!dataUpdate) {
-            throw new Error('User not found');
-        }
-
-        res.status(200).json({
-            status: 1,
-            message: 'Data Updated Successfully',
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
 exports.PauseLink = async function (req, res, next) {
     try {
         const { id, pauseLink, timeperiod } = req.body;
@@ -725,69 +696,6 @@ exports.Purchase2 = async function (req, res, next) {
     }
 };
 
-
-// ===================================== 1 ques preview api =======================================
-exports.StaticQue = async function (req, res, next) {
-    try {
-        const { id, categoryname, question, answer, lan } = req.body;
-
-        if (!categoryname || !question || !answer || !lan) {
-            throw new Error('categoryname, answer, lan & question value is required');
-        }
-
-        const user = await NUSER.findOne({ id: id });
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        let updated = false;
-
-        // Ensure user.question is an array
-        if (!Array.isArray(user.question)) {
-            user.question = [];
-        }
-
-        // Check if category exists
-        user.question = user.question.map(q => {
-            if (q.category === categoryname) {
-                updated = true;
-                return {
-                    category: categoryname,
-                    question: question,
-                    answer: answer, // Store whatever object is sent
-                    lan: lan
-                };
-            }
-            return q;
-        });
-
-        // If category not found, push new category-question pair
-        if (!updated) {
-            user.question.push({
-                category: categoryname,
-                question: question,
-                answer: answer, // Store whatever object is sent
-                lan: lan
-            });
-        }
-
-        await user.save();
-
-        res.status(200).json({
-            status: 1,
-            message: updated
-                ? 'Question Updated Successfully'
-                : 'New Category and Question Added Successfully',
-        });
-
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
 // ============================= 1 and 2 merge question preview api ========================================
 
 exports.StaticQueUpdate = async function (req, res, next) {
@@ -939,110 +847,7 @@ exports.PicRoastData = async function (req, res, next) {
 };
 
 // ======================== 3 question =================================
-const annoyQuestions = {
-    en: [
-        "Weird talent",
-        "Hobby",
-        "Favourite memory",
-        "Secret",
-        "Hidden talent",
-        "Embarrassing moment",
-        "First impression",
-        "Mood",
-        "Guilty pleasure",
-        "Crush",
-        "Weird habit",
-        "Random fact",
-        "Secret wish",
-        "Night thoughts",
-        "Funny dream"
-    ],
-    es: [
-        "Talento raro",
-        "Pasatiempo",
-        "Recuerdo favorito",
-        "Secreto",
-        "Talento oculto",
-        "Momento vergonzoso",
-        "Primera impresión",
-        "Estado de ánimo",
-        "Placer culposo",
-        "Crush",
-        "Hábito raro",
-        "Dato aleatorio",
-        "Deseo secreto",
-        "Pensamientos nocturnos",
-        "Sueño divertido"
-    ],
-    hi: [
-        "अजीब टैलेंट",
-        "शौक",
-        "पसंदीदा याद",
-        "राज़",
-        "छुपा हुआ टैलेंट",
-        "शर्मनाक पल",
-        "पहला इंप्रेशन",
-        "मूड",
-        "गिल्टी प्लेजर",
-        "क्रश",
-        "अजीब आदत",
-        "रैंडम फैक्ट",
-        "सीक्रेट विश",
-        "रात के ख्याल",
-        "मजेदार सपना"
-    ],
-    ta: [
-        "விசித்திர திறமை",
-        "விருப்பம்",
-        "பிடித்த நினைவு",
-        "ரகசியம்",
-        "மறைந்த திறமை",
-        "வெட்கப்படத்தக்க தருணம்",
-        "முதல் பார்வை",
-        "மனநிலை",
-        "குற்ற உணர்ச்சி மகிழ்ச்சி",
-        "க்ரஷ்",
-        "விசித்திர பழக்கம்",
-        "சீரற்ற தகவல்",
-        "ரகசிய ஆசை",
-        "இரவு எண்ணங்கள்",
-        "வேடிக்கையான கனவு"
-    ],
-    mr: [
-        "विचित्र टॅलेंट",
-        "छंद",
-        "आवडती आठवण",
-        "गुपित",
-        "लपलेला टॅलेंट",
-        "लाजिरवाणा क्षण",
-        "पहिली छाप",
-        "मूड",
-        "गिल्टी प्लेझर",
-        "क्रश",
-        "विचित्र सवय",
-        "रँडम तथ्य",
-        "गुपित इच्छा",
-        "रात्रीचे विचार",
-        "मजेदार स्वप्न"
-    ],
-    enhi: [
-        "Ajeeb Talent",
-        "Shauk",
-        "Favourite Yaad",
-        "Raaz",
-        "Hidden Talent",
-        "Embarrassing Moment",
-        "First Impression",
-        "Mood",
-        "Guilty Pleasure",
-        "Crush",
-        "Weird Habit",
-        "Random Fact",
-        "Secret Wish",
-        "Night Thoughts",
-        "Funny Dream"
-    ]
-};
+
 
 
 function getRandomIndexes(total, count) {
@@ -1698,15 +1503,83 @@ exports.Roast = async function (req, res, next) {
 };
 
 // =============================== 9 question ===============================
-exports.Bluff = async function (req, res, next) {
+// exports.Bluff = async function (req, res, next) {
+//     try {
+//         const { id, categoryname, question, lan } = req.body;
+
+//         if (!categoryname || !question || !lan) {
+//             throw new Error('categoryname, lan & question value is required');
+//         }
+
+//         if (categoryname !== "Qmx1ZmY=") {
+//             throw new Error('Invalid categoryname');
+//         }
+
+//         const user = await NUSER.findOne({ id: id });
+//         if (!user) {
+//             throw new Error('User not found');
+//         }
+//         // =================== share count update
+
+//         await updateShareAndBadge(id, categoryname, user);
+
+//         // ===========================================
+
+//         let updated = false;
+
+//         // Ensure user.question is an array
+//         if (!Array.isArray(user.question)) {
+//             user.question = [];
+//         }
+
+//         user.question = user.question.map(q => {
+//             if (q.category === "Qmx1ZmY=") {
+//                 updated = true;
+//                 return {
+//                     category: "Qmx1ZmY=",
+//                     question: question,
+//                     lan: lan
+//                 };
+//             }
+//             return q;
+//         });
+
+//         // If category not found, push new
+//         if (!updated) {
+//             user.question.push({
+//                 category: "Qmx1ZmY=",
+//                 question: question,
+//                 lan: lan
+//             });
+//         }
+
+
+//         await user.save();
+
+//         res.status(200).json({
+//             status: 1,
+//             message: updated
+//                 ? 'Question Updated Successfully'
+//                 : 'New Category and Question Added Successfully'
+//         });
+
+//     } catch (error) {
+//         res.status(400).json({
+//             status: 0,
+//             message: error.message,
+//         });
+//     }
+// };
+
+exports.Rumour = async function (req, res, next) {
     try {
         const { id, categoryname, question, lan } = req.body;
 
         if (!categoryname || !question || !lan) {
-            throw new Error('categoryname, lan & question value is required');
+            throw new Error('categoryname, lan , and question value is required');
         }
 
-        if (categoryname !== "Qmx1ZmY=") {
+        if (categoryname !== "UnVtb3Vy") {
             throw new Error('Invalid categoryname');
         }
 
@@ -1719,7 +1592,6 @@ exports.Bluff = async function (req, res, next) {
         await updateShareAndBadge(id, categoryname, user);
 
         // ===========================================
-
         let updated = false;
 
         // Ensure user.question is an array
@@ -1727,11 +1599,12 @@ exports.Bluff = async function (req, res, next) {
             user.question = [];
         }
 
+
         user.question = user.question.map(q => {
-            if (q.category === "Qmx1ZmY=") {
+            if (q.category === categoryname) {
                 updated = true;
                 return {
-                    category: "Qmx1ZmY=",
+                    category: categoryname,
                     question: question,
                     lan: lan
                 };
@@ -1742,13 +1615,11 @@ exports.Bluff = async function (req, res, next) {
         // If category not found, push new
         if (!updated) {
             user.question.push({
-                category: "Qmx1ZmY=",
+                category: categoryname,
                 question: question,
                 lan: lan
             });
         }
-
-
         await user.save();
 
         res.status(200).json({
@@ -2029,6 +1900,144 @@ exports.HeavenHellAddQues = async function (req, res, next) {
     }
 };
 
+// =============================== 12 question ===============================
+exports.Reputation = async function (req, res, next) {
+    try {
+        const { id, categoryname, question, lan } = req.body;
+
+        if (!categoryname || !question || !lan) {
+            throw new Error('categoryname, lan , and question value is required');
+        }
+
+        if (categoryname !== "UmVwdXRhdGlvbg==") {
+            throw new Error('Invalid categoryname');
+        }
+
+        const user = await NUSER.findOne({ id: id });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        // =================== share count update
+
+        await updateShareAndBadge(id, categoryname, user);
+
+        // ===========================================
+        let updated = false;
+
+        // Ensure user.question is an array
+        if (!Array.isArray(user.question)) {
+            user.question = [];
+        }
+
+
+        user.question = user.question.map(q => {
+            if (q.category === categoryname) {
+                updated = true;
+                return {
+                    category: categoryname,
+                    question: question,
+                    lan: lan
+                };
+            }
+            return q;
+        });
+
+        // If category not found, push new
+        if (!updated) {
+            user.question.push({
+                category: categoryname,
+                question: question,
+                lan: lan
+            });
+        }
+
+
+        await user.save();
+
+        res.status(200).json({
+            status: 1,
+            message: updated
+                ? 'Question Updated Successfully'
+                : 'New Category and Question Added Successfully'
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
+// =============================== 13 question ===============================
+exports.Impression = async function (req, res, next) {
+    try {
+        const { id, categoryname, question, lan } = req.body;
+
+        if (!categoryname || !question || !lan) {
+            throw new Error('categoryname, lan , and question value is required');
+        }
+
+        if (categoryname !== "SW1wcmVzc2lvbg==") {
+            throw new Error('Invalid categoryname');
+        }
+
+        const user = await NUSER.findOne({ id: id });
+        if (!user) {
+            throw new Error('User not found');
+        }
+        // =================== share count update
+
+        await updateShareAndBadge(id, categoryname, user);
+
+        // ===========================================
+        let updated = false;
+
+        // Ensure user.question is an array
+        if (!Array.isArray(user.question)) {
+            user.question = [];
+        }
+
+
+        user.question = user.question.map(q => {
+            if (q.category === categoryname) {
+                updated = true;
+                return {
+                    category: categoryname,
+                    question: question,
+                    lan: lan
+                };
+            }
+            return q;
+        });
+
+        // If category not found, push new
+        if (!updated) {
+            user.question.push({
+                category: categoryname,
+                question: question,
+                lan: lan
+            });
+        }
+
+
+        await user.save();
+
+        res.status(200).json({
+            status: 1,
+            message: updated
+                ? 'Question Updated Successfully'
+                : 'New Category and Question Added Successfully'
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            status: 0,
+            message: error.message,
+        });
+    }
+};
+
 // =============================== user view get ====================================
 exports.UserViews = async function (req, res, next) {
     try {
@@ -2180,482 +2189,6 @@ exports.Logout = async function (req, res, next) {
         });
     }
 };
-
-// ======================= website ======================
-exports.CategoryWeb = async function (req, res, next) {
-    try {
-        const link = `lolcards.link/${req.body.username}`;
-        const user = await NUSER.findOne({ link: link });
-
-        let usernot = false;
-        if (!user) {
-            return res.status(200).json({
-                status: 1,
-                message: "Data Found Successfully",
-                usernot: true
-            });
-        }
-
-        // ======================== block =============================
-        let block = false;
-        if (user.blockList && user.blockList.includes(req.body.ip)) {
-            block = true;
-        }
-        // ==================== allowed ======================================
-        let notAllowed = false;
-
-        const now = new Date();
-
-        const startOfDay = new Date(Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            0, 0, 0, 0
-        ));
-
-        const endOfDay = new Date(Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            23, 59, 59, 999
-        ));
-
-        // ✅ Step 1: find device
-        const device = await DEVICE.findOne({
-            webDeviceIds: req.body.ip
-        });
-
-        if (!device) {
-            // ✅ Step 2: count using deviceId
-            const todayCount = await NINBOX.countDocuments({
-                id: user.id,
-                ip: req.body.ip,
-                category: req.body.category,
-                createdAt: {
-                    $gte: startOfDay,
-                    $lte: endOfDay
-                }
-            });
-
-            // ✅ Step 3: apply limit
-            if (todayCount >= 3) {
-                notAllowed = true;
-            }
-        }
-
-        // ================================
-
-        const inboxDoc = await NINBOX.findOne(
-            { ip: req.body.ip },                // filter condition
-            { hint: 1, hintImage: 1, _id: 0 }   // projection (fields to include/exclude)
-        ).sort({ _id: -1 });
-
-        let responseData = {};
-
-        if (inboxDoc) {
-
-            // If hint exists and is not empty
-            if (inboxDoc.hint && inboxDoc.hint !== "-") {
-                responseData.hintText = inboxDoc.hint;
-            }
-            // Else if hintImage exists but not S3 link — assume it’s emoji
-            else if (inboxDoc.hintImage) {
-                responseData.selectedImage = inboxDoc.hintImage;
-            }
-        }
-
-        const matched = Array.isArray(user.question)
-            ? user.question.find(
-                q => q.category === req.body.category &&
-                    String(q.answer?.timestamp) === String(req.body.timestamp)
-            )
-            : null;
-
-        if (!matched) {
-            throw new Error("Question not found");
-        }
-
-
-        if (req.body.category === "QW5ub3kgZnVuIENhcmQ=") {
-            // Step 1: Get language-based array
-            const lan = matched.lan || "en";
-            const baseArray = annoyQuestions[lan] || annoyQuestions.en;
-
-            // Step 2: Merge with user.annoyallcardtitle (if exists)
-            const mergedArray = Array.isArray(user.annoyallcardtitle)
-                ? [...baseArray, ...user.annoyallcardtitle]
-                : baseArray;
-
-            console.log(mergedArray, "merge");
-
-
-            // Step 3: Get indices and find values
-            const indices = matched.answer?.annoycardtitle || [];
-            const annoycardvalue = indices.map(index => mergedArray[index]).filter(Boolean);
-            console.log(indices, "index");
-            console.log(annoycardvalue, "annoycardvalue");
-
-
-            const userWithValues = {
-                ...user.toObject(),
-                annoycardvalue: annoycardvalue
-            };
-
-            // Step 4: Send result
-            return res.status(200).json({
-                status: 1,
-                message: "Data Found Successfully",
-                data: userWithValues,
-                block: block,
-                notAllowed: notAllowed,
-                usernot: usernot,
-                inboxDoc: responseData
-            });
-        }
-
-
-        // Default response
-        res.status(200).json({
-            status: 1,
-            message: "Data Found Successfully",
-            data: user,
-            block: block,
-            notAllowed: notAllowed,
-            usernot: usernot,
-            inboxDoc: responseData
-        });
-
-    } catch (error) {
-        // console.log("CategoryWeb API Error:");
-        // console.log("Message:", error.message);
-        // console.log("Stack:", error.stack);
-        // console.log("Body:", req.body);
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
-
-exports.CategoryWebIp = async function (req, res, next) {
-    try {
-        // Step 1: Get all inbox docs only ip field
-        const inboxes = await NINBOX.find({}, { ip: 1, _id: 0 }).lean();
-
-        // Step 2: Existing IPs ni list banavi
-        const existingIps = inboxes.map((item) => item.ip);
-
-        // Step 3: Ek unique random IP generate karvi
-        let newIp;
-        do {
-            newIp = uuidv4();
-        } while (existingIps.includes(newIp)); // jo existing ma hoy to fari generate
-
-        // Step 4: Response ma aapo
-        res.status(200).json({
-            status: 1,
-            message: "IP created successfully",
-            ip: newIp,
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
-exports.WebInstall = async function (req, res, next) {
-    try {
-        let { category, username, timestamp } = req.body;
-
-        let link;
-
-        if (category === "UGljIFJvYXN0") {
-            link = `https://lolcards.link/${username}/${category}/${timestamp}`;
-        } else {
-            link = `https://lolcards.link/${username}/${category}`;
-        }
-
-        const user = await WEB.findOne({ ShareURL: link });
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            sourceid: user?.sourceid || ""
-        });
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
-
-exports.WebCardPreview = async function (req, res, next) {
-    try {
-        // 🎴 Get random Card Background
-        const CardBg = await CARDBG.aggregate([{ $sample: { size: 1 } }]);
-
-        if (!CardBg.length) {
-            throw new Error("No card backgrounds found");
-        }
-
-        // 🎨 Shape URLs with names
-        const shapes = [
-            { name: "circle", url: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/shape1.png" },
-            { name: "square", url: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/shape2.png" },
-            { name: "circle", url: "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/shape3.png" }
-        ];
-        const fonts = ["Pure", "Spider"];
-
-        // Random picks
-        const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
-        const randomFont = fonts[Math.floor(Math.random() * fonts.length)];
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0].CardBg,
-                shapeUrl: randomShape.url,
-                shapeName: randomShape.name,
-                fontName: randomFont
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message,
-        });
-    }
-};
-
-
-exports.WebEmotionCardPreview = async (req, res, next) => {
-    try {
-        const decibel = Number(req.body.decibel);
-        if (isNaN(decibel)) return res.status(400).json({ status: 0, message: "Decibel must be a number" });
-
-        // const getCategory = (d) =>
-        //     d >= 0 && d <= 25 ? "Sad" :
-        //         d <= 50 ? "Happy" :
-        //             d <= 75 ? "Love" :
-        //                 d <= 100 ? "Angry" : "Sad";
-
-        const getCategory = (decibel) => {
-            const tubeDecibel = Math.max(decibel - 15, 0);
-            return tubeDecibel >= 0 && tubeDecibel <= 22.5 ? "Sad" :
-                tubeDecibel <= 45 ? "Happy" :
-                    tubeDecibel <= 67.5 ? "Love" :
-                        tubeDecibel <= 100 ? "Angry" :
-                            "Sad";
-        };
-
-        const Category = getCategory(decibel);
-        if (!Category) return res.status(400).json({ status: 0, message: "Invalid decibel value" });
-
-        const [CardBg, Emoji, Content] = await Promise.all([
-            ECARDBG.aggregate([{ $match: { Category } }, { $sample: { size: 1 } }]),
-            EMOJI.aggregate([{ $match: { Category } }, { $sample: { size: 1 } }]),
-            CONTENT.aggregate([{ $match: { Category } }, { $sample: { size: 1 } }])
-        ]);
-
-        if (!CardBg[0] || !Emoji[0] || !Content[0]) {
-            return res.status(400).json({ status: 0, message: "No data found for this category" });
-        }
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0].CardBg,
-                Emoji: Emoji[0].Emoji,
-                Content: Content[0].Content,
-                hiContent: Content[0].hiContent
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({ status: 0, message: error.message });
-    }
-};
-
-
-
-exports.WebHotnessCardPreview = async (req, res, next) => {
-    try {
-
-        const CardBg = await HCARDBG.aggregate([{ $sample: { size: 1 } }]);
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0].CardBg,
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({ status: 0, message: error.message });
-    }
-};
-
-
-exports.WebFriendCardPreview = async (req, res, next) => {
-    try {
-
-        const CardBg = await FCARDBG.aggregate([{ $sample: { size: 1 } }]);
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0].CardBg,
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({ status: 0, message: error.message });
-    }
-};
-
-
-exports.WebBluffCardPreview = async (req, res, next) => {
-    try {
-
-        const { category } = req.body;
-        const CardBg = await BCARDBG.aggregate([
-            {
-                $match: { Category: category }
-            },
-            {
-                $sample: { size: 1 }
-            }
-        ]);
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0]?.CardBg,
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message
-        });
-    }
-};
-
-
-exports.WebHeavenHellCardPreview = async (req, res, next) => {
-    try {
-        const { category } = req.body;
-        const CardBg = await HHCARDBG.aggregate([
-            {
-                $match: { Category: category }
-            },
-            {
-                $sample: { size: 1 }
-            }
-        ]);
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: {
-                CardBg: CardBg[0]?.CardBg,
-            }
-        });
-
-    } catch (error) {
-        res.status(400).json({
-            status: 0,
-            message: error.message
-        });
-    }
-};
-
-
-exports.WebRoastHostId = async (req, res) => {
-    try {
-        const { hotnessId, lanText } = req.body;
-
-        if (!hotnessId) {
-            return res.status(400).json({
-                status: 0,
-                message: "hotnessId is required"
-            });
-        }
-
-        // find all matching categories
-        const data = await HOTNESSCATEGORY.find({
-            categoryId: Number(hotnessId)
-        });
-
-        // Check if any data found
-        if (!data || data.length === 0) {
-            return res.status(404).json({
-                status: 0,
-                message: "Category not found"
-            });
-        }
-
-        // Map through all data and create response objects
-        const responseData = data.map(item => {
-            let obj = {
-                image: item.subCatergoryImage,
-                cardImage: item.cardImage || "https://lol-image-bucket.s3.ap-south-1.amazonaws.com/images/question6/whitecard.png",
-            };
-
-
-            // default English
-            const langMap = {
-                hi: "hisubCatergoryTitle",
-                ta: "tasubCatergoryTitle",
-                mr: "mrsubCatergoryTitle",
-                enhi: "enhisubCatergoryTitle"
-            };
-
-            const key = langMap[lanText];
-
-            obj.name = item[key] || item.subCatergoryTitle;
-
-            return obj;
-        });
-
-        const shuffleArray = (array) => {
-            return array.sort(() => Math.random() - 0.5);
-        };
-
-        const shuffledData = shuffleArray(responseData);
-
-
-        res.status(200).json({
-            status: 1,
-            message: "Success",
-            data: shuffledData,
-            title: data[0].categoryTitle 
-        });
-
-    } catch (error) {
-        console.error('Error in WebRoastHostId:', error);
-        res.status(500).json({
-            status: 0,
-            message: error.message
-        });
-    }
-};
-
-
-
-
 
 // =========================== purchase =====================
 exports.Status = async function (req, res, next) {

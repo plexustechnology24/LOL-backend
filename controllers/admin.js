@@ -26,6 +26,10 @@ const PICROAST = require('../models/picRoastContent');
 const CONFESSION = require('../models/confessionContent');
 const HOTNESSCONTENT = require('../models/hotnessContent');
 const FRIENDCONTENT = require('../models/friendContent');
+const REPUTATIONCARDBG = require('../models/reputationCardBg');
+const REPUTATIONCONTENT = require('../models/reputationContent');
+const IMPRESSIONCARDBG = require('../models/impressionCardBg');
+const IMPRESSIONCONTENT = require('../models/impressionContent');
 const ROAST = require('../models/roastContent');
 const BLUFFCONTENT = require('../models/bluffContent');
 const HELLHEAVENCONTENT = require('../models/heavenHellContent');
@@ -405,6 +409,7 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         break;
       case '9':
         Model = TEMP;
+        break;
       case '10':
         Model = COLLAB;
         break;
@@ -445,7 +450,16 @@ exports.UserDeleteMultiple = async function (req, res, next) {
         Model = HELLHEAVENQUE;
         break;
       case '23':
-        Model = TBH;
+        Model = REPUTATIONCARDBG;
+        break;
+      case '24':
+        Model = REPUTATIONCONTENT;
+        break;
+      case '25':
+        Model = IMPRESSIONCARDBG;
+        break;
+      case '26':
+        Model = IMPRESSIONCONTENT;
         break;
       default:
         throw new Error('Invalid TypeId');

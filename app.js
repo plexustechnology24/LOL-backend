@@ -30,6 +30,8 @@ const hotnessRouter = require('./routes/hotness');
 const friendRouter = require('./routes/friend');
 const bluffRouter = require('./routes/bluff');
 const heavenHellRouter = require('./routes/heavenHell');
+const reputationRouter = require('./routes/reputation');
+const impressionRouter = require('./routes/impression');
 const comingSoonRouter = require('./routes/comingSoon');
 const collabRouter = require('./routes/collab');
 const tempRouter = require('./routes/temp');
@@ -138,6 +140,8 @@ app.use('/api/collab', collabRouter);
 app.use('/api/temp', tempRouter);
 app.use('/api/web', webRouter);
 app.use('/api/tbh', tbhRouter);
+app.use('/api/reputation', reputationRouter);
+app.use('/api/impression', impressionRouter);
 app.get("/", (req, res) => {
   res.send("Server is running!");
 });

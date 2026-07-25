@@ -271,23 +271,11 @@ async function uploadMediaWithFrameCapture(file, folderPath) {
 // Routes
 router.get('/callback', upload.none(), userControllers.CallBack);
 router.post('/idcheck', upload.none(), validateRequestBody, userControllers.IdExist);
-router.post('/pause-link2', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.UpdateLink2);    //old
 router.post('/pauselink', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PauseLink);    //new
-router.post('/que/add', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.StaticQue);
 router.post('/delete/user', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.DeleteUser);
 router.post('/purchase2', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Purchase2);
 router.post('/block-user2', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.BlockUser2);
 router.post('/logout', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Logout);
-router.post('/catgory/found', upload.none(), validateRequestBody, userControllers.CategoryWeb);
-router.post('/catgory/webinstall', upload.none(), validateRequestBody, userControllers.WebInstall);
-router.post('/web/cardpreview', upload.none(), validateRequestBody, userControllers.WebCardPreview);
-router.post('/web/emotion/cardpreview', upload.none(), validateRequestBody, userControllers.WebEmotionCardPreview);
-router.post('/web/hotness/cardpreview', upload.none(), validateRequestBody, userControllers.WebHotnessCardPreview);
-router.post('/web/friend/cardpreview', upload.none(), validateRequestBody, userControllers.WebFriendCardPreview);
-router.post('/web/bluff/cardpreview', upload.none(), validateRequestBody, userControllers.WebBluffCardPreview);
-router.post('/web/heavenhell/cardpreview', upload.none(), validateRequestBody, userControllers.WebHeavenHellCardPreview);
-router.post('/web/hotness', upload.none(), validateRequestBody, userControllers.WebRoastHostId);
-router.post('/catgory/ip', upload.none(), validateRequestBody, userControllers.CategoryWebIp);
 router.post('/purchase/status', upload.none(), validateRequestBody, verifyToken, userControllers.Status);
 router.get('/download', validateRequestBody, analyticsControllers.Download);
 router.post('/user/verify', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Verify);
@@ -328,7 +316,8 @@ router.post('/frndlove/share', upload.none(), validateRequestBody, verifyToken, 
 router.post('/roast/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Roast);
 
 // ======================================= 9 question ==============================================
-router.post('/bluff/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Bluff);
+// router.post('/bluff/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Bluff);
+router.post('/rumour/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Rumour);
 
 // ======================================= 10 question ==============================================
 router.post('/challenge/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Challenge);
@@ -338,6 +327,13 @@ router.post('/heavenhell/share', upload.none(), validateRequestBody, verifyToken
 router.post('/heavenhell/ques', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHellQues);
 router.post('/heavenhell/ques/add', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.HeavenHellAddQues);
 
+
+// ======================================= 12 question ==============================================
+router.post('/reputation/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Reputation);
+
+
+// ======================================= 13 question ==============================================
+router.post('/impression/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Impression);
 
 
 router.post('/Profile', upload.single("avatar"), validateRequestBody, verifyToken, verifyUserId, async (req, res, next) => {

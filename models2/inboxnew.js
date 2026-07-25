@@ -44,9 +44,11 @@ const inboxData = new Schema({
         roastContent: String, //8
         roastVoice: String, //8
         roastEmoji: String, //8
-        bluffBg: String,  //9
-        bluffContent: String, //9
-        bluffEmoji: String, //9
+        // bluffBg: String,  //9
+        // bluffContent: String, //9
+        // bluffEmoji: String, //9
+        rumourContent: String, //9
+        rumourEmoji: String, //9
         challengeContent: String, //10
         heavenHellQue : [String],  //11
         heavenHellAns : [String],  //11
@@ -55,6 +57,16 @@ const inboxData = new Schema({
         heavenHellAvatarImg: String, //11
         heavenHellBgMdlImg: String, //11
         heavenHellType: String, //11
+        reputationBg: String, //12
+        reputationName: String, //12
+        reputationEmoji: String, //12
+        reputationHand: String, //12
+        reputationComment: String, //12
+        impressionBg: String, //13
+        impressionName: String, //13
+        impressionEmoji: String, //13
+        impressionHand: String, //13
+        impressionComment: String, //13
     },
     hint: {
         type: String,
