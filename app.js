@@ -36,7 +36,6 @@ const comingSoonRouter = require('./routes/comingSoon');
 const collabRouter = require('./routes/collab');
 const tempRouter = require('./routes/temp');
 const webRouter = require('./routes/web');
-const tbhRouter = require('./routes/tbh');
 
 const app = express();
 
@@ -139,7 +138,6 @@ app.use('/api/coming-soon', comingSoonRouter);
 app.use('/api/collab', collabRouter);
 app.use('/api/temp', tempRouter);
 app.use('/api/web', webRouter);
-app.use('/api/tbh', tbhRouter);
 app.use('/api/reputation', reputationRouter);
 app.use('/api/impression', impressionRouter);
 app.get("/", (req, res) => {

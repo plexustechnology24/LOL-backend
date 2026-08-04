@@ -4,99 +4,26 @@ const userControllers = require('../controllers/user');
 const userWordsControllers = require('../controllers/UserWords');
 const NUSER = require('../models2/usernew');
 const path = require('path');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const os = require('os');
 const analyticsControllers = require('../controllers/analytics');
 const { validateRequestBody, verifyToken, verifyUserId } = require('../middleware/validateRequest');
-const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
-
-
-// Configure S3 client
-const s3Client = new S3Client({
-    region: process.env.AWS_REGION || 'us-east-1',
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY,
-        secretAccessKey: process.env.AWS_SECRET_KEY
-    }
-});
+const { v4: uuidv4 } = require('uuid');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Core');
 
 // Use multer for parsing multipart form data, but store in memory
 const storage = multer.memoryStorage();
 const upload = multer({
     storage,
-    limits: { fileSize: 15 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
     fileFilter: (req, file, cb) => {
         // Allow only image files and videos
         const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime', 'video/x-msvideo'];
         cb(null, allowedMimes.includes(file.mimetype));
     }
 });
-
-// Function to generate unique filename
-function generateUniqueFilename(originalName, suffix = '') {
-    const fileName = "UserAvatar";
-    const extension = path.extname(originalName);
-    const uniqueId = uuidv4();
-    return `${fileName}-${uniqueId}${suffix}${extension}`;
-}
-
-async function deleteFromS3(fileUrl, bucketName) {
-    try {
-        // Extract the key from the S3 URL
-        const urlParts = fileUrl.split('.s3.amazonaws.com/');
-        if (urlParts.length !== 2) {
-            console.error('Invalid S3 URL format');
-            return false;
-        }
-
-        const key = urlParts[1];
-
-        // Don't delete default avatar
-        if (key.includes('AvatarDefault')) {
-            return false;
-        }
-
-        const deleteParams = {
-            Bucket: bucketName,
-            Key: key
-        };
-
-        await s3Client.send(new DeleteObjectCommand(deleteParams));
-        console.log('Successfully deleted old avatar from S3:', key);
-        return true;
-    } catch (error) {
-        console.error('Error deleting from S3:', error);
-        return false;
-    }
-}
-
-// Function to upload file to S3
-async function uploadToS3(file, bucketName, folderPath = '') {
-    try {
-        const filename = generateUniqueFilename(file.originalname);
-        const key = folderPath ? `${folderPath}/${filename}` : filename;
-
-        const uploadParams = {
-            Bucket: bucketName,
-            Key: key,
-            Body: file.buffer,
-            ContentType: file.mimetype || 'image/jpeg'
-        };
-
-        await s3Client.send(new PutObjectCommand(uploadParams));
-
-        // Return the S3 URL
-        const s3Url = `https://${bucketName}.s3.amazonaws.com/${key}`;
-        return { filename, url: s3Url };
-    } catch (error) {
-        console.error('Error uploading to S3:', error);
-        throw error;
-    }
-}
 
 const generateThumbnailFromUrl = async (videoUrl) => {
     return new Promise((resolve, reject) => {
@@ -122,10 +49,10 @@ const generateThumbnailFromUrl = async (videoUrl) => {
                         };
 
                         // ✅ Pass a proper file object, not a file path string
-                        const upload = await uploadToS3(pseudoFile, process.env.AWS_BUCKET_NAME, 'images/thumbnails');
+                        const uploaded = await uploadToS3(pseudoFile, 'images/thumbnails', { prefix: 'thumb' });
 
                         fs.unlinkSync(outputPath);
-                        resolve(upload.url);
+                        resolve(uploaded.url);
 
                     } catch (err) {
                         reject(err);
@@ -202,13 +129,13 @@ async function captureVideoFrame(videoBuffer, originalFilename) {
 }
 
 // Function to upload file with thumbnail generation for videos
-async function uploadFileWithThumbnail(file, bucketName, folderPath = '') {
+async function uploadFileWithThumbnail(file, folderPath = '') {
     try {
         const isVideo = file.mimetype.startsWith('video/');
         let results = {};
 
         // Upload the original file
-        const originalResult = await uploadToS3(file, bucketName, folderPath);
+        const originalResult = await uploadToS3(file, folderPath, { prefix: 'Media' });
         results.original = originalResult;
 
         // If it's a video, capture and upload thumbnail
@@ -225,7 +152,7 @@ async function uploadFileWithThumbnail(file, bucketName, folderPath = '') {
 
                 // Upload thumbnail to thumbnails folder
                 const thumbnailFolderPath = folderPath.replace('videos/', 'images/thumbnails/');
-                const thumbnailResult = await uploadToS3(thumbnailFile, bucketName, thumbnailFolderPath);
+                const thumbnailResult = await uploadToS3(thumbnailFile, thumbnailFolderPath, { prefix: 'thumb' });
                 results.thumbnail = thumbnailResult;
             } catch (thumbnailError) {
                 console.error('Error generating video thumbnail:', thumbnailError);
@@ -241,28 +168,10 @@ async function uploadFileWithThumbnail(file, bucketName, folderPath = '') {
     }
 }
 
-// Function to upload user avatar image to S3
-async function uploadUserAvatarToS3(file, folderPath = "images/user") {
-    const bucketName = process.env.AWS_BUCKET_NAME;
-
-    try {
-        const result = await uploadToS3(file, bucketName, folderPath);
-        return {
-            filename: result.filename,
-            url: result.url
-        };
-    } catch (error) {
-        throw new Error(`Avatar upload failed: ${error.message}`);
-    }
-}
-
 // Function to upload media with video frame capture
 async function uploadMediaWithFrameCapture(file, folderPath) {
-    const bucketName = process.env.AWS_BUCKET_NAME;
-
     try {
-        const results = await uploadFileWithThumbnail(file, bucketName, folderPath);
-        return results;
+        return await uploadFileWithThumbnail(file, folderPath);
     } catch (error) {
         throw new Error(`Media upload failed: ${error.message}`);
     }
@@ -284,15 +193,15 @@ router.post('/user/language', upload.none(), validateRequestBody, verifyToken, v
 
 
 // ============================== 1 & 4 QUES STORE API ================================
-+router.post('/user/word', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Create);
+router.post('/user/word', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Create);
 
-+router.post('/user/word/get', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Read);
+router.post('/user/word/get', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Read);
 
-+router.post('/user/word/delete', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Delete);
+router.post('/user/word/delete', upload.none(), validateRequestBody, verifyToken, verifyUserId, userWordsControllers.Delete);
 
 
-+router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
-+router.post('/picroast/data', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PicRoastData); // 2 question
+router.post('/credit/check', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.CreditGet); // 2 question
+router.post('/picroast/data', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.PicRoastData); // 2 question
 // ======================================= 3 question ==============================================
 router.post('/annoy/share', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.Annoy);
 router.post('/annoy/allcardtitle', upload.none(), validateRequestBody, verifyToken, verifyUserId, userControllers.AnnoyCardtitle);
@@ -340,7 +249,7 @@ router.post('/Profile', upload.single("avatar"), validateRequestBody, verifyToke
     try {
         if (req.file) {
             // Upload to S3 without compression
-            const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
+            const { filename, url } = await uploadToS3(req.file, "images/user", { prefix: 'UserAvatar' });
 
             // Store filename and URL in the request object for the controller
             req.file.filename = filename;
@@ -366,12 +275,11 @@ router.post('/update/profile', upload.single("avatar"), validateRequestBody, ver
 
             if (currentUser && currentUser.avatar) {
                 // Delete old avatar from S3
-                const bucketName = process.env.AWS_BUCKET_NAME;
-                await deleteFromS3(currentUser.avatar, bucketName);
+                await deleteFromS3(currentUser.avatar, { skipKeywords: ['AvatarDefault'] });
             }
 
             // Upload new avatar to S3
-            const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
+            const { filename, url } = await uploadToS3(req.file, "images/user", { prefix: 'UserAvatar' });
 
             // Store filename and URL in the request object for the controller
             req.file.filename = filename;
@@ -397,12 +305,11 @@ router.post('/update/allprofile', upload.single("avatar"), validateRequestBody, 
 
             if (currentUser && currentUser.avatar) {
                 // Delete old avatar from S3
-                const bucketName = process.env.AWS_BUCKET_NAME;
-                await deleteFromS3(currentUser.avatar, bucketName);
+                await deleteFromS3(currentUser.avatar, { skipKeywords: ['AvatarDefault'] });
             }
 
             // Upload new avatar to S3
-            const { filename, url } = await uploadUserAvatarToS3(req.file, "images/user");
+            const { filename, url } = await uploadToS3(req.file, "images/user", { prefix: 'UserAvatar' });
 
             // Store filename and URL in the request object for the controller
             req.file.filename = filename;

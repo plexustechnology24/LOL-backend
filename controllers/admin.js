@@ -35,7 +35,6 @@ const BLUFFCONTENT = require('../models/bluffContent');
 const HELLHEAVENCONTENT = require('../models/heavenHellContent');
 const HELLHEAVENQUE = require('../models/heavenHellQue');
 const COMINGSOONSUGGESTION = require('../models/comingSoonSuggestion');
-const TBH = require('../models/tbh');
 
 
 
